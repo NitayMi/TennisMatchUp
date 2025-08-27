@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-header">
+                <div class="container">
+                    <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+                    <p class="lead">Welcome back, {{ user.full_name }}!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5><i class="fas fa-info-circle me-2"></i>Account Setup Required</h5>
+                <p class="mb-0">Please complete your profile setup to access all features:</p>
+                <div class="mt-3">
+                    {% if user.user_type == 'player' %}
+                        <a href="{{ url_for('player.edit_profile') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-user-edit me-1"></i>Complete Player Profile
+                        </a>
+                        <a href="{{ url_for('player.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-right me-1"></i>Go to Player Dashboard
+                        </a>
+                    {% elif user.user_type == 'owner' %}
+                        <a href="{{ url_for('owner.add_court') }}" class="btn btn-primary me-2">
+                            <i class="fas fa-plus me-1"></i>Add Your First Court
+                        </a>
+                        <a href="{{ url_for('owner.dashboard') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-arrow-right me-1"></i>Go to Owner Dashboard
+                        </a>
+                    {% elif user.user_type == 'admin' %}
+                        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-primary">
+                            <i class="fas fa-cogs me-1"></i>Access Admin Dashboard
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,1 +1,498 @@
- 
+from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
+from models.user import User
+from models.player import Player
+from models.court import Court, Booking
+from models.message import Message
+from models.database import db
+from utils.decorators import login_required, admin_required
+from services.rule_engine import RuleEngine
+from datetime import datetime, timedelta
+from sqlalchemy import func
+
+admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
+
+@admin_bp.route('/dashboard')
+@login_required
+@admin_required
+def dashboard():
+    """Admin dashboard with system overview"""
+    
+    # Get overall system statistics
+    total_users = User.query.count()
+    total_players = Player.query.count()
+    total_owners = User.query.filter_by(user_type='owner').count()
+    total_courts = Court.query.count()
+    active_courts = Court.query.filter_by(is_active=True).count()
+    
+    # Recent registrations (last 7 days)
+    week_ago = datetime.now() - timedelta(days=7)
+    recent_users = User.query.filter(User.created_at >= week_ago).count()
+    
+    # Booking statistics
+    total_bookings = Booking.query.count()
+    confirmed_bookings = Booking.query.filter_by(status='confirmed').count()
+    pending_bookings = Booking.query.filter_by(status='pending').count()
+    cancelled_bookings = Booking.query.filter_by(status='cancelled').count()
+    
+    # Revenue statistics (last 30 days)
+    month_ago = datetime.now() - timedelta(days=30)
+    monthly_revenue = db.session.query(
+        func.sum(Court.hourly_rate * 
+                func.extract('hour', Booking.end_time - Booking.start_time))
+    ).join(Booking).filter(
+        Booking.status == 'confirmed',
+        Booking.booking_date >= month_ago.date()
+    ).scalar() or 0
+    
+    # Most active players
+    top_players = db.session.query(
+        Player.id,
+        User.full_name,
+        func.count(Booking.id).label('booking_count')
+    ).join(User).outerjoin(Booking).group_by(
+        Player.id, User.full_name
+    ).order_by(func.count(Booking.id).desc()).limit(5).all()
+    
+    # Most popular courts
+    top_courts = db.session.query(
+        Court.id,
+        Court.name,
+        Court.location,
+        func.count(Booking.id).label('booking_count')
+    ).outerjoin(Booking).group_by(
+        Court.id, Court.name, Court.location
+    ).order_by(func.count(Booking.id).desc()).limit(5).all()
+    
+    # Recent activity
+    recent_bookings = Booking.query.order_by(
+        Booking.created_at.desc()
+    ).limit(10).all()
+    
+    stats = {
+        'users': {
+            'total': total_users,
+            'players': total_players,
+            'owners': total_owners,
+            'recent': recent_users
+        },
+        'courts': {
+            'total': total_courts,
+            'active': active_courts,
+            'inactive': total_courts - active_courts
+        },
+        'bookings': {
+            'total': total_bookings,
+            'confirmed': confirmed_bookings,
+            'pending': pending_bookings,
+            'cancelled': cancelled_bookings
+        },
+        'revenue': {
+            'monthly': monthly_revenue
+        }
+    }
+    
+    return render_template('admin/dashboard.html',
+                         stats=stats,
+                         top_players=top_players,
+                         top_courts=top_courts,
+                         recent_bookings=recent_bookings)
+
+@admin_bp.route('/user-management')
+@login_required
+@admin_required
+def user_management():
+    """Manage all system users"""
+    
+    # Get filter parameters
+    user_type = request.args.get('type', 'all')
+    status = request.args.get('status', 'all')
+    search = request.args.get('search', '').strip()
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Build query
+    query = User.query
+    
+    if user_type != 'all':
+        query = query.filter(User.user_type == user_type)
+    
+    if status == 'active':
+        query = query.filter(User.is_active == True)
+    elif status == 'inactive':
+        query = query.filter(User.is_active == False)
+    
+    if search:
+        query = query.filter(
+            db.or_(
+                User.full_name.ilike(f'%{search}%'),
+                User.email.ilike(f'%{search}%'),
+                User.phone_number.ilike(f'%{search}%')
+            )
+        )
+    
+    # Paginate results
+    users = query.order_by(User.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template('admin/user_management.html',
+                         users=users,
+                         filters={
+                             'type': user_type,
+                             'status': status,
+                             'search': search
+                         })
+
+@admin_bp.route('/user/<int:user_id>')
+@login_required
+@admin_required
+def user_detail(user_id):
+    """View detailed user information"""
+    user = User.query.get_or_404(user_id)
+    
+    # Get user-specific data based on type
+    player_data = None
+    owner_data = None
+    
+    if user.user_type == 'player':
+        player_data = Player.query.filter_by(user_id=user_id).first()
+        # Get player's booking history
+        bookings = Booking.query.filter_by(player_id=player_data.id).order_by(
+            Booking.created_at.desc()
+        ).limit(10).all()
+        player_data.recent_bookings = bookings
+        
+    elif user.user_type == 'owner':
+        # Get owner's courts and bookings
+        courts = Court.query.filter_by(owner_id=user_id).all()
+        total_bookings = db.session.query(Booking).join(Court).filter(
+            Court.owner_id == user_id
+        ).count()
+        owner_data = {
+            'courts': courts,
+            'total_bookings': total_bookings
+        }
+    
+    # Get user's messages
+    messages_sent = Message.query.filter_by(sender_id=user_id).count()
+    messages_received = Message.query.filter_by(receiver_id=user_id).count()
+    
+    return render_template('admin/user_detail.html',
+                         user=user,
+                         player_data=player_data,
+                         owner_data=owner_data,
+                         message_stats={
+                             'sent': messages_sent,
+                             'received': messages_received
+                         })
+
+@admin_bp.route('/user/<int:user_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def toggle_user_status(user_id):
+    """Activate or deactivate a user"""
+    user = User.query.get_or_404(user_id)
+    
+    # Don't allow deactivating other admins
+    if user.user_type == 'admin' and user.id != session['user_id']:
+        flash('Cannot modify other admin accounts', 'error')
+        return redirect(url_for('admin.user_detail', user_id=user_id))
+    
+    user.is_active = not user.is_active
+    action = "activated" if user.is_active else "deactivated"
+    
+    db.session.commit()
+    
+    flash(f'User {user.full_name} has been {action}', 'success')
+    return redirect(url_for('admin.user_detail', user_id=user_id))
+
+@admin_bp.route('/user/<int:user_id>/impersonate', methods=['POST'])
+@login_required
+@admin_required
+def impersonate_user(user_id):
+    """Impersonate another user for testing purposes"""
+    user = User.query.get_or_404(user_id)
+    
+    if not user.is_active:
+        flash('Cannot impersonate inactive user', 'error')
+        return redirect(url_for('admin.user_detail', user_id=user_id))
+    
+    # Don't allow impersonating other admins
+    if user.user_type == 'admin':
+        flash('Cannot impersonate other admin users', 'error')
+        return redirect(url_for('admin.user_detail', user_id=user_id))
+    
+    # Store original admin info for returning later
+    session['original_user_id'] = session['user_id']
+    session['original_user_type'] = session['user_type']
+    session['original_user_name'] = session['user_name']
+    
+    # Switch to target user
+    session['user_id'] = user.id
+    session['user_type'] = user.user_type
+    session['user_name'] = user.full_name
+    session['is_impersonating'] = True
+    
+    flash(f'Now impersonating {user.full_name}', 'info')
+    
+    # Redirect to appropriate dashboard
+    if user.user_type == 'player':
+        return redirect(url_for('player.dashboard'))
+    elif user.user_type == 'owner':
+        return redirect(url_for('owner.dashboard'))
+    else:
+        return redirect(url_for('main.dashboard'))
+
+@admin_bp.route('/stop-impersonation', methods=['POST'])
+@login_required
+def stop_impersonation():
+    """Stop impersonating and return to admin account"""
+    if not session.get('is_impersonating'):
+        flash('Not currently impersonating', 'error')
+        return redirect(url_for('admin.dashboard'))
+    
+    # Restore original admin session
+    session['user_id'] = session['original_user_id']
+    session['user_type'] = session['original_user_type']
+    session['user_name'] = session['original_user_name']
+    
+    # Clean up impersonation data
+    session.pop('original_user_id', None)
+    session.pop('original_user_type', None) 
+    session.pop('original_user_name', None)
+    session.pop('is_impersonating', None)
+    
+    flash('Stopped impersonation, returned to admin account', 'info')
+    return redirect(url_for('admin.dashboard'))
+
+@admin_bp.route('/system-reports')
+@login_required
+@admin_required
+def system_reports():
+    """View comprehensive system reports"""
+    
+    # Date range for reports
+    days_back = request.args.get('days', 30, type=int)
+    end_date = datetime.now().date()
+    start_date = end_date - timedelta(days=days_back)
+    
+    # User registration trends
+    registration_data = db.session.query(
+        func.date(User.created_at).label('date'),
+        func.count(User.id).label('count'),
+        User.user_type
+    ).filter(
+        User.created_at >= start_date
+    ).group_by(
+        func.date(User.created_at), 
+        User.user_type
+    ).order_by('date').all()
+    
+    # Booking trends
+    booking_data = db.session.query(
+        func.date(Booking.created_at).label('date'),
+        func.count(Booking.id).label('count'),
+        Booking.status
+    ).filter(
+        Booking.created_at >= start_date
+    ).group_by(
+        func.date(Booking.created_at),
+        Booking.status
+    ).order_by('date').all()
+    
+    # Revenue trends
+    revenue_data = db.session.query(
+        func.date(Booking.booking_date).label('date'),
+        func.sum(Court.hourly_rate * 
+                func.extract('hour', Booking.end_time - Booking.start_time)).label('revenue')
+    ).join(Court).filter(
+        Booking.status == 'confirmed',
+        Booking.booking_date >= start_date
+    ).group_by(func.date(Booking.booking_date)).order_by('date').all()
+    
+    # Court utilization
+    court_utilization = db.session.query(
+        Court.id,
+        Court.name,
+        Court.location,
+        func.count(Booking.id).label('total_bookings'),
+        func.count(func.nullif(Booking.status != 'confirmed', True)).label('confirmed_bookings')
+    ).outerjoin(Booking).filter(
+        db.or_(Booking.booking_date >= start_date, Booking.id.is_(None))
+    ).group_by(Court.id, Court.name, Court.location).all()
+    
+    # Popular locations
+    location_stats = db.session.query(
+        Court.location,
+        func.count(func.distinct(Court.id)).label('court_count'),
+        func.count(Booking.id).label('booking_count')
+    ).outerjoin(Booking).filter(
+        db.or_(Booking.booking_date >= start_date, Booking.id.is_(None))
+    ).group_by(Court.location).order_by(
+        func.count(Booking.id).desc()
+    ).all()
+    
+    # Problem areas (high cancellation rates)
+    problem_courts = db.session.query(
+        Court.id,
+        Court.name,
+        Court.owner_id,
+        User.full_name.label('owner_name'),
+        func.count(Booking.id).label('total_bookings'),
+        func.count(func.nullif(Booking.status != 'cancelled', True)).label('cancelled_bookings'),
+        (func.count(func.nullif(Booking.status != 'cancelled', True)) * 100.0 / 
+         func.nullif(func.count(Booking.id), 0)).label('cancellation_rate')
+    ).join(User, Court.owner_id == User.id).outerjoin(Booking).filter(
+        Booking.booking_date >= start_date
+    ).group_by(
+        Court.id, Court.name, Court.owner_id, User.full_name
+    ).having(
+        func.count(Booking.id) > 5  # Only courts with significant bookings
+    ).order_by(
+        (func.count(func.nullif(Booking.status != 'cancelled', True)) * 100.0 / 
+         func.nullif(func.count(Booking.id), 0)).desc()
+    ).limit(10).all()
+    
+    return render_template('admin/system_reports.html',
+                         registration_data=registration_data,
+                         booking_data=booking_data,
+                         revenue_data=revenue_data,
+                         court_utilization=court_utilization,
+                         location_stats=location_stats,
+                         problem_courts=problem_courts,
+                         date_range={
+                             'start': start_date,
+                             'end': end_date,
+                             'days': days_back
+                         })
+
+@admin_bp.route('/court-management')
+@login_required
+@admin_required
+def court_management():
+    """Manage all courts in the system"""
+    
+    # Get filter parameters
+    status = request.args.get('status', 'all')
+    location = request.args.get('location', '').strip()
+    owner_id = request.args.get('owner_id', type=int)
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Build query
+    query = Court.query.join(User, Court.owner_id == User.id)
+    
+    if status == 'active':
+        query = query.filter(Court.is_active == True)
+    elif status == 'inactive':
+        query = query.filter(Court.is_active == False)
+    
+    if location:
+        query = query.filter(Court.location.ilike(f'%{location}%'))
+        
+    if owner_id:
+        query = query.filter(Court.owner_id == owner_id)
+    
+    courts = query.order_by(Court.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Get all owners for filter dropdown
+    owners = User.query.filter_by(user_type='owner').order_by(User.full_name).all()
+    
+    return render_template('admin/court_management.html',
+                         courts=courts,
+                         owners=owners,
+                         filters={
+                             'status': status,
+                             'location': location,
+                             'owner_id': owner_id
+                         })
+
+@admin_bp.route('/court/<int:court_id>/toggle-status', methods=['POST'])
+@login_required
+@admin_required
+def toggle_court_status(court_id):
+    """Activate or deactivate a court"""
+    court = Court.query.get_or_404(court_id)
+    
+    court.is_active = not court.is_active
+    action = "activated" if court.is_active else "deactivated"
+    
+    db.session.commit()
+    
+    flash(f'Court "{court.name}" has been {action}', 'success')
+    return redirect(url_for('admin.court_management'))
+
+@admin_bp.route('/messages/broadcast', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def broadcast_message():
+    """Send broadcast message to all users or specific user types"""
+    
+    if request.method == 'POST':
+        recipient_type = request.form.get('recipient_type', 'all')
+        subject = request.form.get('subject', '').strip()
+        content = request.form.get('content', '').strip()
+        
+        if not subject or not content:
+            flash('Subject and content are required', 'error')
+            return redirect(url_for('admin.broadcast_message'))
+        
+        # Get recipient users
+        if recipient_type == 'all':
+            recipients = User.query.filter(User.user_type != 'admin').all()
+        else:
+            recipients = User.query.filter_by(user_type=recipient_type).all()
+        
+        # Create messages
+        sender_id = session['user_id']
+        message_count = 0
+        
+        for recipient in recipients:
+            message = Message(
+                sender_id=sender_id,
+                receiver_id=recipient.id,
+                content=f"**{subject}**\n\n{content}",
+                is_broadcast=True
+            )
+            db.session.add(message)
+            message_count += 1
+        
+        db.session.commit()
+        
+        flash(f'Broadcast message sent to {message_count} users', 'success')
+        return redirect(url_for('admin.dashboard'))
+    
+    return render_template('admin/broadcast_message.html')
+
+@admin_bp.route('/api/stats')
+@login_required
+@admin_required
+def api_stats():
+    """API endpoint for dashboard statistics"""
+    
+    # Real-time stats for dashboard widgets
+    stats = {
+        'users': {
+            'total': User.query.count(),
+            'active': User.query.filter_by(is_active=True).count(),
+            'online': 0  # Would need session tracking for real online count
+        },
+        'bookings': {
+            'today': Booking.query.filter_by(
+                booking_date=datetime.now().date()
+            ).count(),
+            'pending': Booking.query.filter_by(status='pending').count(),
+            'confirmed_today': Booking.query.filter(
+                Booking.booking_date == datetime.now().date(),
+                Booking.status == 'confirmed'
+            ).count()
+        },
+        'revenue': {
+            'today': 0,  # Would calculate today's confirmed booking revenue
+            'month': 0   # Would calculate current month revenue
+        }
+    }
+    
+    return jsonify(stats)

@@ -11,6 +11,7 @@ from routes.player import player_bp
 from routes.owner import owner_bp
 from routes.admin import admin_bp
 from routes.api import api_bp
+from routes.main import main_bp
 
 def create_app(config_name=None):
     """Application factory pattern"""

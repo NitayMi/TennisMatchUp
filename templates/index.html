@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+
+{% block title %}TennisMatchUp - Find Tennis Courts & Playing Partners{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="bg-tennis-green text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h1 class="display-4 fw-bold mb-4">
+                    Find Your Perfect Tennis Match
+                    <i class="fas fa-tennis-ball text-tennis-yellow ms-2"></i>
+                </h1>
+                <p class="lead mb-4">
+                    Connect with tennis players, book courts, and elevate your game. 
+                    TennisMatchUp is your all-in-one platform for tennis enthusiasts.
+                </p>
+                <div class="d-flex gap-3 flex-wrap">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4">
+                        <i class="fas fa-user-plus me-2"></i>Get Started
+                    </a>
+                    <a href="{{ url_for('main.search') }}" class="btn btn-outline-light btn-lg px-4">
+                        <i class="fas fa-search me-2"></i>Find Courts
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6 text-center">
+                <div class="hero-illustration">
+                    <i class="fas fa-users" style="font-size: 8rem; opacity: 0.3;"></i>
+                    <i class="fas fa-tennis-ball position-absolute" style="font-size: 2rem; color: var(--tennis-yellow); animation: bounce 2s infinite; top: 20%; right: 30%;"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats Section -->
+<section class="bg-light py-5">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-md-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.total_users }}+</div>
+                    <div class="stat-label">Active Players</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.total_courts }}+</div>
+                    <div class="stat-label">Available Courts</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.total_bookings }}+</div>
+                    <div class="stat-label">Games Played</div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-4">
+                <div class="stat-card">
+                    <div class="stat-number">{{ stats.cities_count }}+</div>
+                    <div class="stat-label">Cities</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2 class="display-5 fw-bold text-tennis-green mb-3">Everything You Need</h2>
+                <p class="lead text-muted">Comprehensive tennis platform for players and court owners</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-search fa-3x text-tennis-green"></i>
+                        </div>
+                        <h4 class="card-title">Find Courts</h4>
+                        <p class="card-text">
+                            Discover tennis courts in your area with detailed information, 
+                            photos, and real-time availability.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-users fa-3x text-tennis-green"></i>
+                        </div>
+                        <h4 class="card-title">Match Players</h4>
+                        <p class="card-text">
+                            Connect with players of similar skill levels in your area. 
+                            Our smart matching system finds your perfect playing partner.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-calendar-alt fa-3x text-tennis-green"></i>
+                        </div>
+                        <h4 class="card-title">Book Instantly</h4>
+                        <p class="card-text">
+                            Easy online booking with instant confirmation. 
+                            Manage all your reservations in one convenient place.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-comments fa-3x text-tennis-green"></i>
+                        </div>
+                        <h4 class="card-title">Chat & Connect</h4>
+                        <p class="card-text">
+                            Built-in messaging system to coordinate with other players 
+                            and court owners seamlessly.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-building fa-3x text-tennis-green"></i>
+                        </div>
+                        <h4 class="card-title">List Your Courts</h4>
+                        <p class="card-text">
+                            Court owners can easily list their facilities, 
+                            set rates, and manage bookings with our owner dashboard.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body text-center p-4">
+                        <div class="feature-icon mb-3">
+                            <i class="fas fa-chart-line fa-3x text-tennis-green"></i>
+                        </div>
+                        <h4 class="card-title">Smart Analytics</h4>
+                        <p class="card-text">
+                            Track your playing history, analyze patterns, 
+                            and get personalized recommendations to improve your game.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Featured Courts Section -->
+{% if featured_courts %}
+<section class="bg-light py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2 class="display-5 fw-bold text-tennis-green mb-3">Featured Courts</h2>
+                <p class="lead text-muted">Popular tennis courts in your area</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            {% for court in featured_courts %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card court-card h-100">
+                    <div class="court-image">
+                        <i class="fas fa-tennis-ball"></i>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ court.name }}</h5>
+                        <p class="court-location mb-2">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ court.location }}
+                        </p>
+                        <p class="court-price mb-2">
+                            ${{ court.hourly_rate }}/hour
+                        </p>
+                        <p class="card-text">
+                            {{ court.description[:100] }}{% if court.description|length > 100 %}...{% endif %}
+                        </p>
+                        <div class="text-muted small">
+                            <i class="fas fa-layer-group me-1"></i>{{ court.surface|title }} • 
+                            <i class="fas fa-tag me-1"></i>{{ court.court_type|title }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="text-center">
+            <a href="{{ url_for('main.search') }}" class="btn btn-tennis btn-lg">
+                <i class="fas fa-search me-2"></i>View All Courts
+            </a>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<!-- How It Works Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 text-center mb-5">
+                <h2 class="display-5 fw-bold text-tennis-green mb-3">How It Works</h2>
+                <p class="lead text-muted">Get started in three simple steps</p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-4 text-center mb-4">
+                <div class="step-number bg-tennis-green text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px; font-size: 1.5rem; font-weight: bold;">
+                    1
+                </div>
+                <h4>Create Your Profile</h4>
+                <p class="text-muted">Sign up and tell us about your playing style, skill level, and preferences.</p>
+            </div>
+            
+            <div class="col-lg-4 text-center mb-4">
+                <div class="step-number bg-tennis-green text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px; font-size: 1.5rem; font-weight: bold;">
+                    2
+                </div>
+                <h4>Find & Connect</h4>
+                <p class="text-muted">Search for courts and players that match your criteria and location.</p>
+            </div>
+            
+            <div class="col-lg-4 text-center mb-4">
+                <div class="step-number bg-tennis-green text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px; font-size: 1.5rem; font-weight: bold;">
+                    3
+                </div>
+                <h4>Book & Play</h4>
+                <p class="text-muted">Reserve your court time and enjoy your game with newfound tennis partners.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="bg-tennis-green text-white py-5">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-8">
+                <h2 class="display-5 fw-bold mb-3">Ready to Elevate Your Tennis Game?</h2>
+                <p class="lead mb-0">Join thousands of tennis enthusiasts already using TennisMatchUp</p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg px-4">
+                    <i class="fas fa-rocket me-2"></i>Join Now - It's Free!
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_scripts %}
+<style>
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-10px);
+    }
+    60% {
+        transform: translateY(-5px);
+    }
+}
+
+.hero-illustration {
+    position: relative;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+</style>
+{% endblock %}

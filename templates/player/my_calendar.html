@@ -1,1 +1,23 @@
- 
+
+<!-- templates/player/my_calendar.html -->
+{% extends "base.html" %}
+{% block title %}My Calendar - TennisMatchUp{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1><i class="fas fa-calendar-alt me-2"></i>My Tennis Calendar</h1>
+    
+    <div class="alert alert-info">
+        <h5>Calendar View</h5>
+        <p class="mb-0">Your booking calendar is being prepared.</p>
+        {% if bookings %}
+            <p class="mt-2">Your upcoming bookings:</p>
+            {% for booking in bookings %}
+                <div class="mt-2 p-2 border rounded">
+                    {{ booking.court.name }} - {{ booking.booking_date }} at {{ booking.start_time }}
+                    <span class="badge bg-{{ booking.get_status_color() }} ms-2">{{ booking.status }}</span>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

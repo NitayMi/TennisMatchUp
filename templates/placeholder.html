@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title or "TennisMatchUp" }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1>{{ page_title or "Page" }}</h1>
+    <div class="alert alert-info">
+        <h5>Feature in Development</h5>
+        <p class="mb-0">This page is being built. Check back soon!</p>
+    </div>
+    
+    <div class="mt-3">
+        <a href="javascript:history.back()" class="btn btn-outline-tennis">
+            <i class="fas fa-arrow-left me-2"></i>Go Back
+        </a>
+    </div>
+</div>
+{% endblock %}

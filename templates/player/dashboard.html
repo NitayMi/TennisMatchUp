@@ -1,1 +1,234 @@
- 
+{% extends "base.html" %}
+
+{% block title %}Player Dashboard - TennisMatchUp{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <h1><i class="fas fa-user me-2"></i>Player Dashboard</h1>
+        <p class="lead mb-0">Welcome back, {{ player.user.full_name }}!</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number">{{ upcoming_bookings|length or 0 }}</div>
+                    <div class="stat-label">Upcoming Games</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number">{{ recent_matches|length or 0 }}</div>
+                    <div class="stat-label">Potential Matches</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number">{{ unread_messages or 0 }}</div>
+                    <div class="stat-label">New Messages</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-lightning-bolt me-2"></i>Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('player.find_matches') }}" class="btn btn-tennis w-100">
+                                <i class="fas fa-users me-2"></i>Find Players
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('player.book_court') }}" class="btn btn-outline-tennis w-100">
+                                <i class="fas fa-calendar-plus me-2"></i>Book Court
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('player.my_calendar') }}" class="btn btn-outline-tennis w-100">
+                                <i class="fas fa-calendar-alt me-2"></i>My Schedule
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{{ url_for('player.messages') }}" class="btn btn-outline-tennis w-100">
+                                <i class="fas fa-comments me-2"></i>Messages
+                                {% if unread_messages and unread_messages > 0 %}
+                                <span class="badge bg-danger ms-1">{{ unread_messages }}</span>
+                                {% endif %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Upcoming Bookings -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Upcoming Games</h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_bookings %}
+                        {% for booking in upcoming_bookings[:5] %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 pb-3 border-bottom">
+                            <div>
+                                <h6 class="mb-1">{{ booking.court.name }}</h6>
+                                <small class="text-muted">
+                                    {{ booking.booking_date.strftime('%A, %b %d') }} at 
+                                    {{ booking.start_time.strftime('%I:%M %p') }}
+                                </small>
+                                <div class="mt-1">
+                                    <span class="badge bg-{{ booking.get_status_color() }}">
+                                        {{ booking.get_status_display() }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                <div class="fw-bold">${{ booking.court.hourly_rate }}</div>
+                                <small class="text-muted">{{ booking.get_duration_display() }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if upcoming_bookings|length > 5 %}
+                        <div class="text-center">
+                            <a href="{{ url_for('player.my_calendar') }}" class="btn btn-sm btn-outline-tennis">
+                                View All ({{ upcoming_bookings|length }} total)
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-calendar fa-3x text-muted mb-3"></i>
+                            <p class="text-muted mb-3">No upcoming games scheduled</p>
+                            <a href="{{ url_for('player.book_court') }}" class="btn btn-tennis">
+                                <i class="fas fa-plus me-2"></i>Book Your First Court
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Matches -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-handshake me-2"></i>Suggested Players</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_matches %}
+                        {% for match in recent_matches[:5] %}
+                        <div class="match-card mb-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ match.user.full_name }}</h6>
+                                    <small class="text-muted">
+                                        {{ match.player.get_skill_level_display() }} • 
+                                        {{ match.player.preferred_location }}
+                                    </small>
+                                    {% if match.compatibility_score %}
+                                    <div class="mt-1">
+                                        <small class="compatibility-score">
+                                            {{ match.compatibility_score }}% Match
+                                        </small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <a href="{{ url_for('player.chat', other_user_id=match.user.id) }}" 
+                                       class="btn btn-sm btn-tennis">
+                                        <i class="fas fa-comment"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <div class="text-center">
+                            <a href="{{ url_for('player.find_matches') }}" class="btn btn-sm btn-outline-tennis">
+                                Find More Players
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <p class="text-muted mb-3">No player matches yet</p>
+                            <a href="{{ url_for('player.find_matches') }}" class="btn btn-tennis">
+                                <i class="fas fa-search me-2"></i>Find Playing Partners
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Player Profile Summary -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user-circle me-2"></i>Your Profile</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <strong>Skill Level:</strong><br>
+                                    <span class="badge bg-info">{{ player.get_skill_level_display() }}</span>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <strong>Preferred Location:</strong><br>
+                                    {{ player.preferred_location or 'Not set' }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <strong>Availability:</strong><br>
+                                    {{ player.get_availability_display() }}
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <strong>Looking for Partner:</strong><br>
+                                    {{ 'Yes' if player.is_looking_for_partner else 'No' }}
+                                </div>
+                            </div>
+                            {% if player.bio %}
+                            <div class="mb-3">
+                                <strong>Bio:</strong><br>
+                                <p class="text-muted mb-0">{{ player.bio }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <a href="{{ url_for('player.edit_profile') }}" class="btn btn-outline-tennis">
+                                <i class="fas fa-edit me-2"></i>Edit Profile
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,1 +1,118 @@
- 
+{% extends "base.html" %}
+
+{% block title %}Find Matches - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1><i class="fas fa-users me-2"></i>Find Playing Partners</h1>
+    <p class="text-muted mb-4">Connect with tennis players that match your style and schedule</p>
+    
+    <!-- Search Filters -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Search Filters</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Skill Level</label>
+                        <select name="skill_level" class="form-select">
+                            <option value="">Any Level</option>
+                            <option value="beginner" {% if filters.skill_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                            <option value="intermediate" {% if filters.skill_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                            <option value="advanced" {% if filters.skill_level == 'advanced' %}selected{% endif %}>Advanced</option>
+                            <option value="professional" {% if filters.skill_level == 'professional' %}selected{% endif %}>Professional</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Location</label>
+                        <input type="text" name="location" class="form-control" 
+                               placeholder="City or area" value="{{ filters.location or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Availability</label>
+                        <select name="availability" class="form-select">
+                            <option value="">Any Time</option>
+                            <option value="weekdays" {% if filters.availability == 'weekdays' %}selected{% endif %}>Weekdays</option>
+                            <option value="weekends" {% if filters.availability == 'weekends' %}selected{% endif %}>Weekends</option>
+                            <option value="evenings" {% if filters.availability == 'evenings' %}selected{% endif %}>Evenings</option>
+                            <option value="flexible" {% if filters.availability == 'flexible' %}selected{% endif %}>Flexible</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-tennis w-100">
+                            <i class="fas fa-search me-2"></i>Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div class="row">
+        {% if matches %}
+            {% for match in matches %}
+            <div class="col-md-6 mb-4">
+                <div class="card match-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title">{{ match.user.full_name }}</h5>
+                            <span class="compatibility-score">{{ match.compatibility_score or 75 }}%</span>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-6">
+                                <small class="text-muted">Skill Level</small><br>
+                                <span class="badge bg-info">{{ match.player.get_skill_level_display() }}</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Location</small><br>
+                                {{ match.player.preferred_location or 'Not specified' }}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <small class="text-muted">Availability</small><br>
+                            {{ match.player.get_availability_display() }}
+                        </div>
+                        
+                        {% if match.player.bio %}
+                        <div class="mb-3">
+                            <small class="text-muted">About</small><br>
+                            <p class="small text-secondary">{{ match.player.bio[:100] }}{% if match.player.bio|length > 100 %}...{% endif %}</p>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('player.chat', other_user_id=match.user.id) }}" class="btn btn-tennis btn-sm flex-fill">
+                                <i class="fas fa-comment me-1"></i>Message
+                            </a>
+                            <button class="btn btn-outline-tennis btn-sm" onclick="viewPlayerDetails('{{ match.player.id }}')">
+                                <i class="fas fa-info me-1"></i>Details
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No players found</h4>
+                    <p class="text-muted">Try adjusting your search criteria</p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function viewPlayerDetails(playerId) {
+    alert('Player details feature coming soon!');
+}
+</script>
+{% endblock %}

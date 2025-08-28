@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="form-tennis">
+                <div class="text-center mb-4">
+                    <i class="fas fa-user-edit text-tennis-green" style="font-size: 3rem;"></i>
+                    <h2 class="mt-3 mb-0">Edit Profile</h2>
+                    <p class="text-muted">Update your account information</p>
+                </div>
+
+                <form method="POST" action="{{ url_for('auth.profile') }}">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="full_name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" 
+                                   value="{{ user.full_name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="email" value="{{ user.email }}" disabled>
+                            <div class="form-text">Email cannot be changed</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="phone_number" class="form-label">Phone Number (Optional)</label>
+                        <input type="tel" class="form-control" id="phone_number" name="phone_number" 
+                               value="{{ user.phone_number or '' }}">
+                    </div>
+                    
+                    {% if user.user_type == 'player' and user.player_profile %}
+                    <hr class="my-4">
+                    <h5 class="text-tennis-green mb-3">Player Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="skill_level" class="form-label">Skill Level</label>
+                            <select class="form-select" id="skill_level" name="skill_level">
+                                <option value="beginner" {% if user.player_profile.skill_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                                <option value="intermediate" {% if user.player_profile.skill_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                                <option value="advanced" {% if user.player_profile.skill_level == 'advanced' %}selected{% endif %}>Advanced</option>
+                                <option value="professional" {% if user.player_profile.skill_level == 'professional' %}selected{% endif %}>Professional</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="preferred_location" class="form-label">Preferred Location</label>
+                            <input type="text" class="form-control" id="preferred_location" name="preferred_location" 
+                                   value="{{ user.player_profile.preferred_location or '' }}" placeholder="e.g., Tel Aviv">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="availability" class="form-label">General Availability</label>
+                        <select class="form-select" id="availability" name="availability">
+                            <option value="">Select availability</option>
+                            <option value="weekdays" {% if user.player_profile.availability == 'weekdays' %}selected{% endif %}>Weekdays</option>
+                            <option value="weekends" {% if user.player_profile.availability == 'weekends' %}selected{% endif %}>Weekends</option>
+                            <option value="evenings" {% if user.player_profile.availability == 'evenings' %}selected{% endif %}>Evenings</option>
+                            <option value="flexible" {% if user.player_profile.availability == 'flexible' %}selected{% endif %}>Flexible</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="bio" class="form-label">Bio</label>
+                        <textarea class="form-control" id="bio" name="bio" rows="3" 
+                                  placeholder="Tell other players about yourself...">{{ user.player_profile.bio or '' }}</textarea>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex gap-3">
+                        <button type="submit" class="btn btn-tennis flex-fill">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                        <a href="{{ url_for('auth.change_password') }}" class="btn btn-outline-tennis">
+                            <i class="fas fa-key me-2"></i>Change Password
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

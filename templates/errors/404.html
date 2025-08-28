@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <i class="fas fa-tennis-ball fa-4x text-muted mb-4"></i>
+            <h1 class="display-4">404</h1>
+            <h2 class="mb-4">Page Not Found</h2>
+            <p class="lead text-muted mb-4">
+                Sorry, the page you're looking for doesn't exist.
+                It might have been moved or deleted.
+            </p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('main.index') }}" class="btn btn-tennis">
+                    <i class="fas fa-home me-2"></i>Go Home
+                </a>
+                <a href="javascript:history.back()" class="btn btn-outline-tennis">
+                    <i class="fas fa-arrow-left me-2"></i>Go Back
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

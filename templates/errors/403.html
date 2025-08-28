@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Access Denied - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <i class="fas fa-lock fa-4x text-danger mb-4"></i>
+            <h1 class="display-4">403</h1>
+            <h2 class="mb-4">Access Denied</h2>
+            <p class="lead text-muted mb-4">
+                You don't have permission to access this page.
+                Please log in with appropriate credentials.
+            </p>
+            <div class="d-flex justify-content-center gap-3">
+                <a href="{{ url_for('auth.login') }}" class="btn btn-tennis">
+                    <i class="fas fa-sign-in-alt me-2"></i>Login
+                </a>
+                <a href="{{ url_for('main.index') }}" class="btn btn-outline-tennis">
+                    <i class="fas fa-home me-2"></i>Go Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

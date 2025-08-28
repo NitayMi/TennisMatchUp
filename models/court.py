@@ -1,243 +1,295 @@
-from models.database import db, TimestampMixin
-from sqlalchemy import CheckConstraint
-from datetime import datetime, timedelta
+from models.database import db
+from datetime import datetime, date, time
 
-class Court(db.Model, TimestampMixin):
-    """Tennis court model"""
+class Court(db.Model):
+    """Court model for tennis courts"""
     __tablename__ = 'courts'
     
     id = db.Column(db.Integer, primary_key=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
-    # Court information
     name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
     location = db.Column(db.String(200), nullable=False)
-    court_type = db.Column(db.Enum('hard', 'clay', 'grass', 'indoor', name='court_types'), 
-                          default='hard')
-    description = db.Column(db.Text)
-    
-    # Pricing and availability
-    hourly_rate = db.Column(db.Numeric(8, 2), nullable=False, default=0.0)
-    currency = db.Column(db.String(3), default='ILS')
-    
-    # Features and amenities
-    has_lighting = db.Column(db.Boolean, default=False)
-    has_parking = db.Column(db.Boolean, default=False) 
-    has_shower = db.Column(db.Boolean, default=False)
-    max_players = db.Column(db.Integer, default=4)
-    
-    # Operational settings
-    is_active = db.Column(db.Boolean, default=True)
-    auto_approve_bookings = db.Column(db.Boolean, default=False)
-    advance_booking_days = db.Column(db.Integer, default=30)  # How far ahead can book
-    min_booking_notice = db.Column(db.Integer, default=2)  # Minimum hours notice
-    
-    # Contact and images
-    contact_phone = db.Column(db.String(20))
-    image_urls = db.Column(db.Text)  # JSON string of image URLs
+    address = db.Column(db.String(300), nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    court_type = db.Column(db.String(20), nullable=False)  # outdoor, indoor
+    surface = db.Column(db.String(20), nullable=False)  # clay, hard, grass, artificial
+    hourly_rate = db.Column(db.Float, nullable=False)
+    amenities = db.Column(db.Text, nullable=True)  # JSON string or comma-separated
+    has_lighting = db.Column(db.Boolean, default=False, nullable=False)
+    has_parking = db.Column(db.Boolean, default=False, nullable=False)
+    has_equipment_rental = db.Column(db.Boolean, default=False, nullable=False)
+    has_changing_rooms = db.Column(db.Boolean, default=False, nullable=False)
+    max_players = db.Column(db.Integer, default=4, nullable=False)
+    advance_booking_days = db.Column(db.Integer, default=30, nullable=False)
+    cancellation_policy = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    image_urls = db.Column(db.Text, nullable=True)  # JSON array of image URLs
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
-    booking_requests = db.relationship('BookingRequest', backref='court', lazy='dynamic',
-                                     cascade='all, delete-orphan')
-    match_suggestions = db.relationship('MatchRequest', backref='suggested_court',
-                                      foreign_keys='MatchRequest.suggested_court_id')
+    bookings = db.relationship('Booking', backref='court', cascade='all, delete-orphan')
     
-    __table_args__ = (
-        CheckConstraint('hourly_rate >= 0', name='positive_rate'),
-        CheckConstraint('advance_booking_days > 0', name='positive_advance_days'),
-        CheckConstraint('min_booking_notice >= 0', name='positive_notice_hours'),
-    )
+    def __init__(self, owner_id, name, location, court_type, surface, hourly_rate, description=None):
+        self.owner_id = owner_id
+        self.name = name
+        self.location = location
+        self.court_type = court_type
+        self.surface = surface
+        self.hourly_rate = hourly_rate
+        self.description = description
+        self.is_active = True
     
-    def __repr__(self):
-        return f'<Court {self.name} - {self.owner.username}>'
+    def get_surface_display(self):
+        """Get formatted surface type"""
+        surface_mapping = {
+            'clay': 'Clay',
+            'hard': 'Hard Court',
+            'grass': 'Grass',
+            'artificial': 'Artificial Grass'
+        }
+        return surface_mapping.get(self.surface, self.surface.title())
     
-    def get_display_rate(self):
-        """Get formatted hourly rate"""
-        return f"₪{self.hourly_rate}/hour"
+    def get_court_type_display(self):
+        """Get formatted court type"""
+        type_mapping = {
+            'outdoor': 'Outdoor',
+            'indoor': 'Indoor'
+        }
+        return type_mapping.get(self.court_type, self.court_type.title())
     
-    def is_available_at(self, date, start_time, duration_hours=1):
-        """Check if court is available at specific date/time"""
-        if not self.is_active:
-            return False
+    def get_available_slots(self, booking_date, duration_hours=1):
+        """Get available time slots for a specific date"""
+        if isinstance(booking_date, str):
+            booking_date = datetime.strptime(booking_date, '%Y-%m-%d').date()
+        
+        # Get existing bookings for this date
+        existing_bookings = Booking.query.filter(
+            Booking.court_id == self.id,
+            Booking.booking_date == booking_date,
+            Booking.status.in_(['confirmed', 'pending'])
+        ).order_by(Booking.start_time).all()
+        
+        # Generate available slots (8 AM to 9 PM)
+        available_slots = []
+        start_hour = 8
+        end_hour = 21
+        
+        for hour in range(start_hour, end_hour):
+            slot_start = time(hour, 0)
+            slot_end = time(hour + duration_hours, 0) if hour + duration_hours <= 24 else time(23, 59)
             
-        end_time = start_time + timedelta(hours=duration_hours)
+            # Check if this slot conflicts with any booking
+            conflict = False
+            for booking in existing_bookings:
+                if (slot_start < booking.end_time and slot_end > booking.start_time):
+                    conflict = True
+                    break
+            
+            if not conflict and hour + duration_hours <= end_hour:
+                available_slots.append({
+                    'start_time': slot_start.strftime('%H:%M'),
+                    'end_time': slot_end.strftime('%H:%M'),
+                    'duration': duration_hours
+                })
+        
+        return available_slots
+    
+    def is_available(self, booking_date, start_time, end_time):
+        """Check if court is available for specific time slot"""
+        if isinstance(booking_date, str):
+            booking_date = datetime.strptime(booking_date, '%Y-%m-%d').date()
+        if isinstance(start_time, str):
+            start_time = datetime.strptime(start_time, '%H:%M').time()
+        if isinstance(end_time, str):
+            end_time = datetime.strptime(end_time, '%H:%M').time()
         
         # Check for conflicting bookings
-        conflicting = self.booking_requests.filter(
-            BookingRequest.requested_date == date,
-            BookingRequest.status == 'approved',
+        conflicting_bookings = Booking.query.filter(
+            Booking.court_id == self.id,
+            Booking.booking_date == booking_date,
+            Booking.status.in_(['confirmed', 'pending']),
             db.or_(
-                db.and_(BookingRequest.start_time <= start_time, 
-                       BookingRequest.end_time > start_time),
-                db.and_(BookingRequest.start_time < end_time,
-                       BookingRequest.end_time >= end_time),
-                db.and_(BookingRequest.start_time >= start_time,
-                       BookingRequest.end_time <= end_time)
+                db.and_(Booking.start_time <= start_time, Booking.end_time > start_time),
+                db.and_(Booking.start_time < end_time, Booking.end_time >= end_time),
+                db.and_(Booking.start_time >= start_time, Booking.end_time <= end_time)
             )
-        ).first()
+        ).count()
         
-        return conflicting is None
+        return conflicting_bookings == 0
     
-    def get_bookings_for_date(self, date):
-        """Get all approved bookings for a specific date"""
-        return self.booking_requests.filter(
-            BookingRequest.requested_date == date,
-            BookingRequest.status == 'approved'
-        ).order_by(BookingRequest.start_time).all()
-    
-    def get_pending_requests_count(self):
-        """Get count of pending booking requests"""
-        return self.booking_requests.filter_by(status='pending').count()
-    
-    def get_monthly_revenue(self, year, month):
-        """Calculate revenue for a specific month"""
-        bookings = self.booking_requests.filter(
-            db.extract('year', BookingRequest.requested_date) == year,
-            db.extract('month', BookingRequest.requested_date) == month,
-            BookingRequest.status == 'approved'
-        ).all()
+    def get_utilization_rate(self, days_back=30):
+        """Get court utilization rate for the past period"""
+        start_date = date.today() - datetime.timedelta(days=days_back)
         
-        total = sum(booking.get_total_cost() for booking in bookings)
-        return float(total)
+        total_bookings = Booking.query.filter(
+            Booking.court_id == self.id,
+            Booking.booking_date >= start_date,
+            Booking.status == 'confirmed'
+        ).count()
+        
+        # Simplified calculation: assume 14 available hours per day
+        total_possible_slots = days_back * 14
+        return (total_bookings / total_possible_slots * 100) if total_possible_slots > 0 else 0
     
     def to_dict(self):
-        """Convert to dictionary for API responses"""
+        """Convert court to dictionary"""
         return {
             'id': self.id,
+            'owner_id': self.owner_id,
             'name': self.name,
-            'location': self.location,
-            'court_type': self.court_type,
-            'hourly_rate': float(self.hourly_rate),
-            'display_rate': self.get_display_rate(),
             'description': self.description,
+            'location': self.location,
+            'address': self.address,
+            'latitude': self.latitude,
+            'longitude': self.longitude,
+            'court_type': self.court_type,
+            'court_type_display': self.get_court_type_display(),
+            'surface': self.surface,
+            'surface_display': self.get_surface_display(),
+            'hourly_rate': self.hourly_rate,
+            'amenities': self.amenities,
             'has_lighting': self.has_lighting,
             'has_parking': self.has_parking,
-            'has_shower': self.has_shower,
-            'owner_name': self.owner.get_display_name(),
+            'has_equipment_rental': self.has_equipment_rental,
+            'has_changing_rooms': self.has_changing_rooms,
+            'max_players': self.max_players,
+            'advance_booking_days': self.advance_booking_days,
+            'cancellation_policy': self.cancellation_policy,
             'is_active': self.is_active,
-            'auto_approve': self.auto_approve_bookings
+            'image_urls': self.image_urls,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-
-class BookingRequest(db.Model, TimestampMixin):
-    """Booking requests for tennis courts"""
-    __tablename__ = 'booking_requests'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    player_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    court_id = db.Column(db.Integer, db.ForeignKey('courts.id'), nullable=False)
-    
-    # Booking details
-    requested_date = db.Column(db.Date, nullable=False)
-    start_time = db.Column(db.Time, nullable=False)
-    duration_hours = db.Column(db.Integer, nullable=False, default=1)
-    
-    # Request information
-    status = db.Column(db.Enum('pending', 'approved', 'declined', 'cancelled', 
-                              name='booking_statuses'), default='pending')
-    player_notes = db.Column(db.Text)
-    
-    # Owner response
-    owner_response = db.Column(db.Text)
-    responded_at = db.Column(db.DateTime)
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    
-    # Additional players for the booking
-    additional_players = db.Column(db.Text)  # JSON string of player names/contacts
-    
-    # Financial
-    quoted_price = db.Column(db.Numeric(8, 2))  # Price quoted by owner
-    paid_amount = db.Column(db.Numeric(8, 2), default=0.0)
-    payment_status = db.Column(db.Enum('unpaid', 'partial', 'paid', name='payment_statuses'), 
-                              default='unpaid')
-    
-    # Relationships
-    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
-    
-    __table_args__ = (
-        CheckConstraint('duration_hours > 0', name='positive_duration'),
-        CheckConstraint('quoted_price >= 0', name='positive_price'),
-        CheckConstraint('paid_amount >= 0', name='positive_payment'),
-    )
     
     def __repr__(self):
-        return f'<BookingRequest {self.player.username} @ {self.court.name} on {self.requested_date}>'
+        return f'<Court {self.name} in {self.location}>'
+
+
+class Booking(db.Model):
+    """Booking model for court reservations"""
+    __tablename__ = 'bookings'
     
-    @property
-    def end_time(self):
-        """Calculate end time based on start time and duration"""
-        start_datetime = datetime.combine(datetime.today(), self.start_time)
-        end_datetime = start_datetime + timedelta(hours=self.duration_hours)
-        return end_datetime.time()
+    id = db.Column(db.Integer, primary_key=True)
+    court_id = db.Column(db.Integer, db.ForeignKey('courts.id'), nullable=False)
+    player_id = db.Column(db.Integer, db.ForeignKey('players.id'), nullable=False)
+    booking_date = db.Column(db.Date, nullable=False)
+    start_time = db.Column(db.Time, nullable=False)
+    end_time = db.Column(db.Time, nullable=False)
+    status = db.Column(db.String(20), default='pending', nullable=False)  # pending, confirmed, cancelled, rejected
+    notes = db.Column(db.Text, nullable=True)
+    total_cost = db.Column(db.Float, nullable=True)
+    payment_status = db.Column(db.String(20), default='pending', nullable=False)  # pending, paid, refunded
+    cancellation_reason = db.Column(db.Text, nullable=True)
+    rejection_reason = db.Column(db.Text, nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    rejected_at = db.Column(db.DateTime, nullable=True)
+    cancelled_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    def get_total_cost(self):
-        """Calculate total cost based on court rate and duration"""
-        if self.quoted_price:
-            return float(self.quoted_price)
-        return float(self.court.hourly_rate) * self.duration_hours
+    def __init__(self, court_id, player_id, booking_date, start_time, end_time, notes=None):
+        self.court_id = court_id
+        self.player_id = player_id
+        self.booking_date = booking_date
+        self.start_time = start_time
+        self.end_time = end_time
+        self.notes = notes
+        self.status = 'pending'
+        self.payment_status = 'pending'
     
-    def get_display_time_range(self):
-        """Get formatted time range string"""
-        return f"{self.start_time.strftime('%H:%M')} - {self.end_time.strftime('%H:%M')}"
+    def calculate_cost(self):
+        """Calculate total cost for this booking"""
+        if not self.court:
+            return 0
+        
+        start_datetime = datetime.combine(date.today(), self.start_time)
+        end_datetime = datetime.combine(date.today(), self.end_time)
+        duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
+        
+        return self.court.hourly_rate * duration_hours
     
-    def is_pending(self):
-        """Check if booking is still pending"""
-        return self.status == 'pending'
+    def get_duration_display(self):
+        """Get formatted duration"""
+        start_datetime = datetime.combine(date.today(), self.start_time)
+        end_datetime = datetime.combine(date.today(), self.end_time)
+        duration = end_datetime - start_datetime
+        
+        hours = int(duration.total_seconds() // 3600)
+        minutes = int((duration.total_seconds() % 3600) // 60)
+        
+        if hours > 0 and minutes > 0:
+            return f"{hours}h {minutes}m"
+        elif hours > 0:
+            return f"{hours}h"
+        else:
+            return f"{minutes}m"
     
-    def can_be_cancelled(self):
-        """Check if booking can be cancelled by player"""
-        if self.status not in ['pending', 'approved']:
+    def get_status_display(self):
+        """Get formatted status"""
+        status_mapping = {
+            'pending': 'Pending Approval',
+            'confirmed': 'Confirmed',
+            'cancelled': 'Cancelled',
+            'rejected': 'Rejected'
+        }
+        return status_mapping.get(self.status, self.status.title())
+    
+    def get_status_color(self):
+        """Get color class for status"""
+        color_mapping = {
+            'pending': 'warning',
+            'confirmed': 'success',
+            'cancelled': 'danger',
+            'rejected': 'secondary'
+        }
+        return color_mapping.get(self.status, 'secondary')
+    
+    def can_cancel(self, user_id, user_type):
+        """Check if booking can be cancelled by user"""
+        if self.status not in ['confirmed', 'pending']:
             return False
         
-        # Can cancel if booking is in the future
-        booking_datetime = datetime.combine(self.requested_date, self.start_time)
-        return booking_datetime > datetime.now()
-    
-    def approve(self, owner, response_message=None, quoted_price=None):
-        """Approve the booking request"""
-        if self.status == 'pending':
-            self.status = 'approved'
-            self.owner_response = response_message
-            self.responded_at = datetime.utcnow()
-            self.approved_by_id = owner.id
-            
-            if quoted_price:
-                self.quoted_price = quoted_price
-            else:
-                self.quoted_price = self.get_total_cost()
-                
+        # Player can cancel their own bookings
+        if user_type == 'player' and self.player.user_id == user_id:
             return True
-        return False
-    
-    def decline(self, owner, response_message):
-        """Decline the booking request"""
-        if self.status == 'pending':
-            self.status = 'declined'
-            self.owner_response = response_message
-            self.responded_at = datetime.utcnow()
-            self.approved_by_id = owner.id
+        
+        # Owner can cancel bookings for their courts
+        if user_type == 'owner' and self.court.owner_id == user_id:
             return True
-        return False
-    
-    def cancel(self):
-        """Cancel the booking (by player or owner)"""
-        if self.can_be_cancelled():
-            self.status = 'cancelled'
+        
+        # Admin can cancel any booking
+        if user_type == 'admin':
             return True
+        
         return False
     
     def to_dict(self):
-        """Convert to dictionary for API responses"""
+        """Convert booking to dictionary"""
         return {
             'id': self.id,
-            'court_name': self.court.name,
-            'court_location': self.court.location,
-            'player_name': self.player.get_display_name(),
-            'requested_date': self.requested_date.isoformat(),
-            'time_range': self.get_display_time_range(),
-            'duration_hours': self.duration_hours,
+            'court_id': self.court_id,
+            'player_id': self.player_id,
+            'booking_date': self.booking_date.isoformat() if self.booking_date else None,
+            'start_time': self.start_time.strftime('%H:%M') if self.start_time else None,
+            'end_time': self.end_time.strftime('%H:%M') if self.end_time else None,
             'status': self.status,
-            'total_cost': self.get_total_cost(),
-            'player_notes': self.player_notes,
-            'owner_response': self.owner_response,
-            'payment_status': self.payment_status
+            'status_display': self.get_status_display(),
+            'status_color': self.get_status_color(),
+            'notes': self.notes,
+            'total_cost': self.total_cost or self.calculate_cost(),
+            'duration_display': self.get_duration_display(),
+            'payment_status': self.payment_status,
+            'cancellation_reason': self.cancellation_reason,
+            'rejection_reason': self.rejection_reason,
+            'approved_at': self.approved_at.isoformat() if self.approved_at else None,
+            'rejected_at': self.rejected_at.isoformat() if self.rejected_at else None,
+            'cancelled_at': self.cancelled_at.isoformat() if self.cancelled_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
+    
+    def __repr__(self):
+        return f'<Booking {self.id}: {self.court.name if self.court else "Unknown Court"} on {self.booking_date}>'

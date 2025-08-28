@@ -1,33 +1,32 @@
-from models.database import db, TimestampMixin
+from models.database import db
 from datetime import datetime
 
-class Message(db.Model, TimestampMixin):
-    """Chat messages between users"""
+class Message(db.Model):
+    """Message model for user communications"""
     __tablename__ = 'messages'
     
     id = db.Column(db.Integer, primary_key=True)
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     receiver_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
-    # Message content
     content = db.Column(db.Text, nullable=False)
-    message_type = db.Column(db.Enum('match_chat', 'booking_inquiry', 'general', 
-                                    name='message_types'), default='general')
-    
-    # Related entities (optional)
-    related_match_id = db.Column(db.Integer, db.ForeignKey('match_requests.id'))
-    related_booking_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'))
-    
-    # Message status
     is_read = db.Column(db.Boolean, default=False, nullable=False)
-    read_at = db.Column(db.DateTime)
+    is_broadcast = db.Column(db.Boolean, default=False, nullable=False)
+    message_type = db.Column(db.String(20), default='text', nullable=False)  # text, system, notification
+    related_booking_id = db.Column(db.Integer, db.ForeignKey('bookings.id'), nullable=True)
+    attachment_url = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
-    related_match = db.relationship('MatchRequest', backref='messages')
-    related_booking = db.relationship('BookingRequest', backref='messages')
+    related_booking = db.relationship('Booking', backref='messages')
     
-    def __repr__(self):
-        return f'<Message {self.sender.username} -> {self.receiver.username}>'
+    def __init__(self, sender_id, receiver_id, content, message_type='text', is_broadcast=False):
+        self.sender_id = sender_id
+        self.receiver_id = receiver_id
+        self.content = content
+        self.message_type = message_type
+        self.is_broadcast = is_broadcast
+        self.is_read = False
     
     def mark_as_read(self):
         """Mark message as read"""
@@ -36,148 +35,121 @@ class Message(db.Model, TimestampMixin):
             self.read_at = datetime.utcnow()
             db.session.commit()
     
-    def get_time_since_sent(self):
-        """Get human-readable time since message was sent"""
-        if not self.created_at:
-            return "Unknown"
-            
+    def get_preview(self, max_length=100):
+        """Get message preview"""
+        if len(self.content) <= max_length:
+            return self.content
+        return self.content[:max_length] + "..."
+    
+    def get_message_type_display(self):
+        """Get formatted message type"""
+        type_mapping = {
+            'text': 'Message',
+            'system': 'System Message',
+            'notification': 'Notification'
+        }
+        return type_mapping.get(self.message_type, self.message_type.title())
+    
+    def get_time_display(self):
+        """Get formatted time display"""
         now = datetime.utcnow()
         diff = now - self.created_at
         
-        if diff.days > 0:
-            return f"{diff.days} day{'s' if diff.days != 1 else ''} ago"
+        if diff.days > 7:
+            return self.created_at.strftime('%b %d, %Y')
+        elif diff.days > 0:
+            return f"{diff.days} day{'s' if diff.days > 1 else ''} ago"
         elif diff.seconds > 3600:
             hours = diff.seconds // 3600
-            return f"{hours} hour{'s' if hours != 1 else ''} ago"
+            return f"{hours} hour{'s' if hours > 1 else ''} ago"
         elif diff.seconds > 60:
             minutes = diff.seconds // 60
-            return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+            return f"{minutes} minute{'s' if minutes > 1 else ''} ago"
         else:
             return "Just now"
     
-    def get_conversation_partner(self, current_user_id):
-        """Get the other user in this conversation"""
-        if self.sender_id == current_user_id:
-            return self.receiver
-        else:
-            return self.sender
-    
-    def is_sent_by(self, user_id):
-        """Check if message was sent by specific user"""
+    def is_from_sender(self, user_id):
+        """Check if message is from specific user"""
         return self.sender_id == user_id
     
-    def get_context_info(self):
-        """Get context information about the message"""
-        if self.related_match:
-            return {
-                'type': 'match',
-                'context': f"Re: Match request with {self.related_match.target.user.username}"
-            }
-        elif self.related_booking:
-            return {
-                'type': 'booking',
-                'context': f"Re: Booking at {self.related_booking.court.name}"
-            }
-        else:
-            return {
-                'type': 'general',
-                'context': None
-            }
+    def is_to_receiver(self, user_id):
+        """Check if message is to specific user"""
+        return self.receiver_id == user_id
+    
+    def involves_user(self, user_id):
+        """Check if message involves specific user"""
+        return self.sender_id == user_id or self.receiver_id == user_id
     
     def to_dict(self):
-        """Convert to dictionary for API responses"""
+        """Convert message to dictionary"""
         return {
             'id': self.id,
             'sender_id': self.sender_id,
-            'sender_name': self.sender.get_display_name(),
             'receiver_id': self.receiver_id,
-            'receiver_name': self.receiver.get_display_name(),
             'content': self.content,
-            'message_type': self.message_type,
+            'preview': self.get_preview(),
             'is_read': self.is_read,
+            'is_broadcast': self.is_broadcast,
+            'message_type': self.message_type,
+            'message_type_display': self.get_message_type_display(),
+            'related_booking_id': self.related_booking_id,
+            'attachment_url': self.attachment_url,
+            'time_display': self.get_time_display(),
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'time_since_sent': self.get_time_since_sent(),
-            'context': self.get_context_info()
+            'read_at': self.read_at.isoformat() if self.read_at else None
         }
-
-class Conversation:
-    """Helper class to manage conversations between two users"""
     
     @staticmethod
-    def get_messages_between(user1_id, user2_id, limit=50):
-        """Get messages between two users"""
+    def get_conversation_messages(user1_id, user2_id):
+        """Get all messages between two users"""
         return Message.query.filter(
             db.or_(
                 db.and_(Message.sender_id == user1_id, Message.receiver_id == user2_id),
                 db.and_(Message.sender_id == user2_id, Message.receiver_id == user1_id)
             )
-        ).order_by(Message.created_at.desc()).limit(limit).all()
+        ).order_by(Message.created_at.asc()).all()
     
     @staticmethod
-    def get_user_conversations(user_id, limit=20):
-        """Get all conversations for a user with the latest message"""
-        # Get all users this user has exchanged messages with
-        sent_to = db.session.query(Message.receiver_id).filter(Message.sender_id == user_id).distinct()
-        received_from = db.session.query(Message.sender_id).filter(Message.receiver_id == user_id).distinct()
+    def get_user_conversations(user_id):
+        """Get all conversations for a user"""
+        # Get all unique conversation partners
+        conversations = db.session.query(
+            Message.sender_id,
+            Message.receiver_id,
+            db.func.max(Message.created_at).label('last_message_time')
+        ).filter(
+            db.or_(Message.sender_id == user_id, Message.receiver_id == user_id)
+        ).group_by(
+            db.case(
+                [(Message.sender_id == user_id, Message.receiver_id)],
+                else_=Message.sender_id
+            )
+        ).order_by(db.desc('last_message_time')).all()
         
-        conversation_user_ids = sent_to.union(received_from).all()
-        conversations = []
-        
-        for (other_user_id,) in conversation_user_ids:
-            # Get the latest message between these users
-            latest_message = Message.query.filter(
-                db.or_(
-                    db.and_(Message.sender_id == user_id, Message.receiver_id == other_user_id),
-                    db.and_(Message.sender_id == other_user_id, Message.receiver_id == user_id)
-                )
-            ).order_by(Message.created_at.desc()).first()
-            
-            if latest_message:
-                # Count unread messages from the other user
-                unread_count = Message.query.filter(
-                    Message.sender_id == other_user_id,
-                    Message.receiver_id == user_id,
-                    Message.is_read == False
-                ).count()
-                
-                from models.user import User
-                other_user = User.query.get(other_user_id)
-                
-                conversations.append({
-                    'other_user': other_user,
-                    'latest_message': latest_message,
-                    'unread_count': unread_count
-                })
-        
-        # Sort by latest message timestamp
-        conversations.sort(key=lambda x: x['latest_message'].created_at, reverse=True)
-        return conversations[:limit]
+        return conversations
+    
+    @staticmethod
+    def count_unread_messages(user_id):
+        """Count unread messages for a user"""
+        return Message.query.filter(
+            Message.receiver_id == user_id,
+            Message.is_read == False
+        ).count()
     
     @staticmethod
     def mark_conversation_as_read(user_id, other_user_id):
-        """Mark all messages from other_user to user as read"""
-        unread_messages = Message.query.filter(
+        """Mark all messages in a conversation as read"""
+        Message.query.filter(
             Message.sender_id == other_user_id,
             Message.receiver_id == user_id,
             Message.is_read == False
-        ).all()
-        
-        for message in unread_messages:
-            message.mark_as_read()
-    
-    @staticmethod
-    def send_message(sender_id, receiver_id, content, message_type='general', 
-                    related_match_id=None, related_booking_id=None):
-        """Send a new message"""
-        message = Message(
-            sender_id=sender_id,
-            receiver_id=receiver_id,
-            content=content,
-            message_type=message_type,
-            related_match_id=related_match_id,
-            related_booking_id=related_booking_id
-        )
-        
-        db.session.add(message)
+        ).update({
+            'is_read': True,
+            'read_at': datetime.utcnow()
+        })
         db.session.commit()
-        return message
+    
+    def __repr__(self):
+        sender_name = self.sender.full_name if self.sender else "Unknown"
+        receiver_name = self.receiver.full_name if self.receiver else "Unknown"
+        return f'<Message from {sender_name} to {receiver_name}: {self.get_preview(50)}>'

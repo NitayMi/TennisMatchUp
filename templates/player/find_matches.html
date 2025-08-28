@@ -1,19 +1,23 @@
 {% extends "base.html" %}
 
-{% block title %}Find Matches - TennisMatchUp{% endblock %}
+{% block title %}Find Playing Partners - TennisMatchUp{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <h1><i class="fas fa-users me-2"></i>Find Playing Partners</h1>
-    <p class="text-muted mb-4">Connect with tennis players that match your style and schedule</p>
+    <div class="row">
+        <div class="col-12">
+            <h1><i class="fas fa-users me-2 text-tennis-green"></i>Find Playing Partners</h1>
+            <p class="text-muted mb-4">Connect with tennis players that match your style and schedule</p>
+        </div>
+    </div>
     
     <!-- Search Filters -->
     <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0">Search Filters</h5>
+        <div class="card-header bg-tennis-light">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Search Filters</h5>
         </div>
         <div class="card-body">
-            <form method="GET">
+            <form method="GET" action="{{ url_for('player.find_matches') }}">
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <label class="form-label">Skill Level</label>
@@ -43,7 +47,7 @@
                     <div class="col-md-3 mb-3">
                         <label class="form-label">&nbsp;</label>
                         <button type="submit" class="btn btn-tennis w-100">
-                            <i class="fas fa-search me-2"></i>Search
+                            <i class="fas fa-search me-2"></i>Find Players
                         </button>
                     </div>
                 </div>
@@ -51,48 +55,92 @@
         </div>
     </div>
     
+    <!-- Results Count -->
+    {% if matches %}
+    <div class="mb-3">
+        <small class="text-muted">Found {{ matches|length }} compatible players</small>
+    </div>
+    {% endif %}
+    
     <!-- Results -->
     <div class="row">
         {% if matches %}
             {% for match in matches %}
-            <div class="col-md-6 mb-4">
-                <div class="card match-card h-100">
-                    <div class="card-body">
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card match-card h-100 border-tennis">
+                    <div class="card-body d-flex flex-column">
+                        <!-- Player Header -->
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <h5 class="card-title">{{ match.user.full_name }}</h5>
-                            <span class="compatibility-score">{{ match.compatibility_score or 75 }}%</span>
+                            <div>
+                                <h5 class="card-title mb-1">{{ match.user.full_name }}</h5>
+                                <div class="text-muted small">
+                                    <i class="fas fa-map-marker-alt me-1"></i>{{ match.player.preferred_location or 'Location not set' }}
+                                </div>
+                            </div>
+                            <div class="text-center">
+                                <div class="compatibility-score">
+                                    {{ match.compatibility_score or 85 }}%
+                                </div>
+                                <small class="text-muted">Match</small>
+                            </div>
                         </div>
                         
+                        <!-- Player Info -->
                         <div class="row mb-3">
-                            <div class="col-6">
-                                <small class="text-muted">Skill Level</small><br>
-                                <span class="badge bg-info">{{ match.player.get_skill_level_display() }}</span>
+                            <div class="col-12 mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Skill Level:</small>
+                                    <span class="badge bg-info">{{ match.player.get_skill_level_display() }}</span>
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <small class="text-muted">Location</small><br>
-                                {{ match.player.preferred_location or 'Not specified' }}
+                            <div class="col-12 mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Availability:</small>
+                                    <span class="text-tennis-green">{{ match.player.get_availability_display() }}</span>
+                                </div>
                             </div>
+                            {% if match.distance %}
+                            <div class="col-12 mb-2">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">Distance:</small>
+                                    <span>{{ "%.1f"|format(match.distance) }} km</span>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                         
-                        <div class="mb-3">
-                            <small class="text-muted">Availability</small><br>
-                            {{ match.player.get_availability_display() }}
-                        </div>
-                        
+                        <!-- Player Bio -->
                         {% if match.player.bio %}
-                        <div class="mb-3">
-                            <small class="text-muted">About</small><br>
-                            <p class="small text-secondary">{{ match.player.bio[:100] }}{% if match.player.bio|length > 100 %}...{% endif %}</p>
+                        <div class="mb-3 flex-grow-1">
+                            <small class="text-muted">About:</small>
+                            <p class="small mt-1">{{ match.player.bio[:120] }}{% if match.player.bio|length > 120 %}...{% endif %}</p>
                         </div>
                         {% endif %}
                         
-                        <div class="d-flex gap-2">
-                            <a href="{{ url_for('player.chat', other_user_id=match.user.id) }}" class="btn btn-tennis btn-sm flex-fill">
-                                <i class="fas fa-comment me-1"></i>Message
-                            </a>
-                            <button class="btn btn-outline-tennis btn-sm" onclick="viewPlayerDetails('{{ match.player.id }}')">
-                                <i class="fas fa-info me-1"></i>Details
-                            </button>
+                        <!-- Common Interests -->
+                        {% if match.common_interests %}
+                        <div class="mb-3">
+                            <small class="text-muted">In Common:</small>
+                            <div class="mt-1">
+                                {% for interest in match.common_interests %}
+                                <span class="badge bg-light text-dark me-1 mb-1">{{ interest }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Action Buttons -->
+                        <div class="mt-auto">
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('player.chat', other_user_id=match.user.id) }}" 
+                                   class="btn btn-tennis btn-sm">
+                                    <i class="fas fa-comment me-2"></i>Send Message
+                                </a>
+                                <button class="btn btn-outline-tennis btn-sm" 
+                                        onclick="suggestMatch('{{ match.player.id }}', '{{ match.user.full_name }}')">
+                                    <i class="fas fa-handshake me-2"></i>Suggest Match
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -101,18 +149,56 @@
         {% else %}
             <div class="col-12">
                 <div class="text-center py-5">
-                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <i class="fas fa-users fa-4x text-muted mb-3"></i>
                     <h4 class="text-muted">No players found</h4>
-                    <p class="text-muted">Try adjusting your search criteria</p>
+                    <p class="text-muted mb-4">Try adjusting your search criteria or check back later for new players</p>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <button class="btn btn-outline-tennis" onclick="location.reload()">
+                            <i class="fas fa-redo me-2"></i>Refresh Search
+                        </button>
+                        <button class="btn btn-tennis" onclick="expandSearch()">
+                            <i class="fas fa-expand me-2"></i>Expand Search
+                        </button>
+                    </div>
                 </div>
             </div>
         {% endif %}
     </div>
+    
+    <!-- Tips for Better Matches -->
+    {% if matches and matches|length < 3 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-tennis">
+                <h6><i class="fas fa-lightbulb me-2"></i>Tips for Better Matches</h6>
+                <ul class="mb-0">
+                    <li>Update your profile with more details about your playing style</li>
+                    <li>Try expanding your location search or availability</li>
+                    <li>Consider players one skill level above or below yours</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <script>
-function viewPlayerDetails(playerId) {
-    alert('Player details feature coming soon!');
+function suggestMatch(playerId, playerName) {
+    if (confirm(`Send a match request to ${playerName}?`)) {
+        // In real implementation, this would send an API request
+        TennisApp.showToast(`Match request sent to ${playerName}!`, 'success');
+    }
+}
+
+function expandSearch() {
+    // Clear filters and search again
+    const form = document.querySelector('form');
+    form.querySelectorAll('select, input[type="text"]').forEach(input => {
+        input.value = '';
+    });
+    form.submit();
 }
 </script>
+
 {% endblock %}

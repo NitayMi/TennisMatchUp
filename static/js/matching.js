@@ -1,10 +1,13 @@
-// TennisMatchUp - Matching System JavaScript
+// TennisMatchUp - Enhanced Matching System JavaScript
 
 const MatchingSystem = {
     
     // Send match request to another player
     sendMatchRequest: function(playerId, playerName) {
         if (confirm(`Send a match request to ${playerName}?`)) {
+            // Show loading state
+            this.updateMatchRequestButton(playerId, 'loading');
+            
             fetch('/player/send-match-request', {
                 method: 'POST',
                 headers: {
@@ -12,22 +15,52 @@ const MatchingSystem = {
                 },
                 body: JSON.stringify({
                     player_id: playerId,
-                    message: `Hi ${playerName}, would you like to play tennis together?`
+                    message: `Hi ${playerName}, I'd like to play tennis with you. Are you available for a match?`
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    TennisApp.showToast(`Match request sent to ${playerName}!`, 'success');
-                    // Update UI to show request sent
+                    this.showToast(data.message, 'success');
                     this.updateMatchRequestButton(playerId, 'sent');
                 } else {
-                    TennisApp.showToast(data.error || 'Failed to send request', 'error');
+                    this.showToast(data.error || 'Failed to send request', 'error');
+                    this.updateMatchRequestButton(playerId, 'error');
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                TennisApp.showToast('Network error occurred', 'error');
+                this.showToast('Network error occurred', 'error');
+                this.updateMatchRequestButton(playerId, 'error');
+            });
+        }
+    },
+    
+    // Send message to another player (general messaging)
+    sendMessage: function(playerId, playerName) {
+        const message = prompt(`Send a message to ${playerName}:`);
+        if (message && message.trim()) {
+            fetch('/player/send-message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'receiver_id': playerId,
+                    'content': message.trim()
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(`Message sent to ${playerName}!`, 'success');
+                } else {
+                    this.showToast(data.error || 'Failed to send message', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showToast('Network error occurred', 'error');
             });
         }
     },
@@ -37,17 +70,67 @@ const MatchingSystem = {
         const button = document.querySelector(`[data-player-id="${playerId}"]`);
         if (button) {
             switch(state) {
+                case 'loading':
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
+                    button.className = 'btn btn-outline-secondary btn-sm';
+                    button.disabled = true;
+                    break;
                 case 'sent':
                     button.innerHTML = '<i class="fas fa-clock me-2"></i>Request Sent';
-                    button.className = 'btn btn-outline-secondary btn-sm';
+                    button.className = 'btn btn-outline-success btn-sm';
                     button.disabled = true;
                     break;
                 case 'accepted':
                     button.innerHTML = '<i class="fas fa-check me-2"></i>Matched!';
                     button.className = 'btn btn-success btn-sm';
                     break;
+                case 'error':
+                    button.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Try Again';
+                    button.className = 'btn btn-outline-danger btn-sm';
+                    button.disabled = false;
+                    break;
             }
         }
+    },
+    
+    // Show toast notification
+    showToast: function(message, type = 'info') {
+        // Create toast element if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+            `;
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toast = document.createElement('div');
+        const bgColor = {
+            'success': 'bg-success',
+            'error': 'bg-danger', 
+            'warning': 'bg-warning',
+            'info': 'bg-info'
+        }[type] || 'bg-info';
+        
+        toast.className = `alert ${bgColor} text-white alert-dismissible fade show`;
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 5000);
     },
     
     // Initialize matching page
@@ -61,13 +144,22 @@ const MatchingSystem = {
             });
         });
         
-        // Auto-refresh search results every 30 seconds
+        // Add event listeners to send message buttons
+        document.querySelectorAll('[data-action="send-message"]').forEach(button => {
+            button.addEventListener('click', function() {
+                const playerId = this.getAttribute('data-player-id');
+                const playerName = this.getAttribute('data-player-name');
+                MatchingSystem.sendMessage(playerId, playerName);
+            });
+        });
+        
+        // Auto-refresh search results every 60 seconds
         setInterval(() => {
             const currentForm = document.querySelector('#match-search-form');
             if (currentForm && document.visibilityState === 'visible') {
                 this.refreshMatches();
             }
-        }, 30000);
+        }, 60000);
     },
     
     // Refresh match results
@@ -88,10 +180,13 @@ const MatchingSystem = {
                 
                 if (newResults && currentResults) {
                     currentResults.innerHTML = newResults.innerHTML;
-                    this.initMatchingPage(); // Re-initialize event listeners
+                    // Re-initialize event listeners for new content
+                    this.initMatchingPage();
                 }
             })
-            .catch(error => console.error('Refresh error:', error));
+            .catch(error => {
+                console.error('Error refreshing matches:', error);
+            });
         }
     },
     
@@ -99,18 +194,24 @@ const MatchingSystem = {
     saveSearchPreferences: function() {
         const form = document.querySelector('#match-search-form');
         if (form) {
+            const preferences = {};
             const formData = new FormData(form);
-            const preferences = {
-                skill_level: formData.get('skill_level'),
-                location: formData.get('location'),
-                availability: formData.get('availability')
-            };
             
-            localStorage.setItem('tennis_search_prefs', JSON.stringify(preferences));
+            for (let [key, value] of formData.entries()) {
+                if (value) {
+                    preferences[key] = value;
+                }
+            }
+            
+            try {
+                localStorage.setItem('tennis_search_prefs', JSON.stringify(preferences));
+            } catch (error) {
+                console.warn('Could not save search preferences:', error);
+            }
         }
     },
     
-    // Load saved search preferences
+    // Load search preferences
     loadSearchPreferences: function() {
         try {
             const saved = localStorage.getItem('tennis_search_prefs');
@@ -120,15 +221,15 @@ const MatchingSystem = {
                 
                 if (form) {
                     Object.keys(preferences).forEach(key => {
-                        const input = form.querySelector(`[name="${key}"]`);
-                        if (input && preferences[key]) {
-                            input.value = preferences[key];
+                        const field = form.querySelector(`[name="${key}"]`);
+                        if (field && preferences[key]) {
+                            field.value = preferences[key];
                         }
                     });
                 }
             }
         } catch (error) {
-            console.error('Error loading preferences:', error);
+            console.warn('Could not load search preferences:', error);
         }
     },
     
@@ -144,7 +245,7 @@ const MatchingSystem = {
             if (locationInput) locationInput.value = '';
             
             // Show message and submit
-            TennisApp.showToast('Expanding search criteria...', 'info');
+            this.showToast('Expanding search criteria...', 'info');
             form.submit();
         }
     }
@@ -169,6 +270,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // Global functions for inline event handlers
 window.suggestMatch = function(playerId, playerName) {
     MatchingSystem.sendMatchRequest(playerId, playerName);
+};
+
+window.sendMessage = function(playerId, playerName) {
+    MatchingSystem.sendMessage(playerId, playerName);
 };
 
 window.expandSearch = function() {

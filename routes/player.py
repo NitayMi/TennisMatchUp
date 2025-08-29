@@ -325,3 +325,116 @@ def edit_profile():
     return render_template('player/edit_profile.html',
                          player=player,
                          user=user)
+
+
+# Add this new route to your existing routes/player.py file
+# Insert this after the existing send_message route
+
+@player_bp.route('/send-match-request', methods=['POST'])
+@login_required
+@player_required
+def send_match_request():
+    """Send a match request to another player"""
+    user_id = session['user_id']
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'})
+    
+    target_player_id = data.get('player_id')
+    custom_message = data.get('message', '')
+    
+    if not target_player_id:
+        return jsonify({'success': False, 'error': 'Player ID is required'})
+    
+    # Validate target player exists
+    target_player = Player.query.get(target_player_id)
+    if not target_player:
+        return jsonify({'success': False, 'error': 'Player not found'})
+    
+    target_user = target_player.user
+    sender = User.query.get(user_id)
+    
+    # Validate using business rules
+    validation = RuleEngine.validate_player_matching(user_id, target_player_id)
+    if not validation['valid']:
+        return jsonify({'success': False, 'error': validation['reason']})
+    
+    # Create match request message
+    if custom_message:
+        content = custom_message
+    else:
+        content = f"Hi {target_user.full_name}! I'd like to play tennis with you. Are you available for a match?"
+    
+    # Create the message
+    message = Message(
+        sender_id=user_id,
+        receiver_id=target_user.id,
+        content=content,
+        message_type='match_request'
+    )
+    
+    try:
+        db.session.add(message)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Match request sent to {target_user.full_name}!',
+            'message_id': message.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to send match request'})
+
+@player_bp.route('/respond-to-match/<int:message_id>', methods=['POST'])
+@login_required
+@player_required
+def respond_to_match(message_id):
+    """Respond to a match request (accept/decline)"""
+    user_id = session['user_id']
+    message = Message.query.get_or_404(message_id)
+    
+    # Validate this message belongs to current user
+    if message.receiver_id != user_id:
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    
+    response = request.get_json()
+    action = response.get('action')  # 'accept' or 'decline'
+    reply_message = response.get('message', '')
+    
+    if action not in ['accept', 'decline']:
+        return jsonify({'success': False, 'error': 'Invalid action'})
+    
+    # Mark original message as read
+    message.mark_as_read()
+    
+    # Create response message
+    if action == 'accept':
+        content = f"Great! I'd love to play with you. {reply_message}" if reply_message else "Great! I'd love to play with you. When would be a good time?"
+        response_type = 'match_accepted'
+    else:
+        content = f"Thanks for the invitation, but I can't play right now. {reply_message}" if reply_message else "Thanks for the invitation, but I can't play right now."
+        response_type = 'match_declined'
+    
+    response_message = Message(
+        sender_id=user_id,
+        receiver_id=message.sender_id,
+        content=content,
+        message_type=response_type
+    )
+    
+    try:
+        db.session.add(response_message)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'action': action,
+            'message': f'Response sent successfully!'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to send response'})

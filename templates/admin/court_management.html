@@ -1,0 +1,49 @@
+<!-- templates/admin/court_management.html -->
+{% extends "base.html" %}
+{% block title %}Court Management - Admin{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1><i class="fas fa-building me-2"></i>Court Management</h1>
+    <div class="alert alert-info">
+        <h5>Court Management</h5>
+        <p class="mb-0">Monitor and manage all tennis courts in the system.</p>
+    </div>
+    
+    {% if courts %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Court Name</th>
+                        <th>Owner</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Rate</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for court in courts %}
+                    <tr>
+                        <td>{{ court.name }}</td>
+                        <td>{{ court.owner.full_name }}</td>
+                        <td>{{ court.location }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if court.is_active else 'secondary' }}">
+                                {{ 'Active' if court.is_active else 'Inactive' }}
+                            </span>
+                        </td>
+                        <td>${{ court.hourly_rate }}/hr</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary">View</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="text-muted">No courts found in the system.</p>
+    {% endif %}
+</div>
+{% endblock %}

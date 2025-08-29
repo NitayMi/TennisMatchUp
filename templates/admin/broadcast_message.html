@@ -1,0 +1,43 @@
+
+<!-- templates/admin/broadcast_message.html -->
+{% extends "base.html" %}
+{% block title %}Broadcast Message - Admin{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <h1><i class="fas fa-bullhorn me-2"></i>Broadcast Message</h1>
+    <div class="alert alert-info">
+        <h5>Send System Message</h5>
+        <p class="mb-0">Send notifications to all users or specific user types.</p>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">Recipients</label>
+                    <select name="recipient_type" class="form-select" required>
+                        <option value="">Choose recipients</option>
+                        <option value="all">All Users</option>
+                        <option value="player">Players Only</option>
+                        <option value="owner">Court Owners Only</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Subject</label>
+                    <input type="text" name="subject" class="form-control" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Message</label>
+                    <textarea name="content" class="form-control" rows="4" required></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-paper-plane me-2"></i>Send Message
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

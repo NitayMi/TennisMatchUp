@@ -75,31 +75,31 @@ class MatchingEngine:
         return scored_matches[:limit]
     
     @staticmethod
-    def _calculate_player_compatibility(player1, player2):
-        """Calculate detailed compatibility score between two players"""
-        score = 100
+    # def _calculate_player_compatibility(player1, player2):
+    #     """Calculate detailed compatibility score between two players"""
+    #     score = 100
         
-        # Skill level compatibility (40% weight)
-        skill_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}
-        skill_diff = abs(skill_levels[player1.skill_level] - skill_levels[player2.skill_level])
-        skill_score = max(0, 100 - (skill_diff * 30))
-        score = score * 0.6 + skill_score * 0.4
+    #     # Skill level compatibility (40% weight)
+    #     skill_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}
+    #     skill_diff = abs(skill_levels[player1.skill_level] - skill_levels[player2.skill_level])
+    #     skill_score = max(0, 100 - (skill_diff * 30))
+    #     score = score * 0.6 + skill_score * 0.4
         
-        # Location compatibility (30% weight)
-        location_score = 100 if player1.preferred_location.lower() == player2.preferred_location.lower() else 50
-        score = score * 0.7 + location_score * 0.3
+    #     # Location compatibility (30% weight)
+    #     location_score = 100 if player1.preferred_location.lower() == player2.preferred_location.lower() else 50
+    #     score = score * 0.7 + location_score * 0.3
         
-        # Availability compatibility (20% weight)
-        availability_score = 100 if player1.availability == player2.availability else 60
-        score = score * 0.8 + availability_score * 0.2
+    #     # Availability compatibility (20% weight)
+    #     availability_score = 100 if player1.availability == player2.availability else 60
+    #     score = score * 0.8 + availability_score * 0.2
         
-        # Activity level (10% weight) - players who are more active get higher scores
-        player1_bookings = Booking.query.filter_by(player_id=player1.id).count()
-        player2_bookings = Booking.query.filter_by(player_id=player2.id).count()
-        activity_score = min(100, (player2_bookings / max(1, player1_bookings)) * 50 + 50)
-        score = score * 0.9 + activity_score * 0.1
+    #     # Activity level (10% weight) - players who are more active get higher scores
+    #     player1_bookings = Booking.query.filter_by(player_id=player1.id).count()
+    #     player2_bookings = Booking.query.filter_by(player_id=player2.id).count()
+    #     activity_score = min(100, (player2_bookings / max(1, player1_bookings)) * 50 + 50)
+    #     score = score * 0.9 + activity_score * 0.1
         
-        return round(score, 1)
+    #     return round(score, 1)
     
     @staticmethod
     def _find_common_interests(player1, player2):

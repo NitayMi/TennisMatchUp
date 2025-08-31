@@ -1,0 +1,279 @@
+"""
+Geographic Service for TennisMatchUp
+Real geographic calculations using OpenCage API
+"""
+import requests
+import os
+from math import radians, cos, sin, asin, sqrt
+from models.database import db
+import time
+
+class GeoService:
+    """Geographic service with real coordinate calculation"""
+    
+    API_KEY = os.getenv('OPENCAGE_API_KEY')
+    BASE_URL = "https://api.opencagedata.com/geocode/v1/json"
+    
+    # Cache to avoid API calls for known locations
+    _location_cache = {}
+    
+    @staticmethod
+    def get_coordinates(location_name):
+        """Get coordinates for a location name"""
+        if not location_name or not GeoService.API_KEY:
+            return None
+            
+        # Normalize location name
+        location_key = location_name.lower().strip()
+        
+        # Check cache first
+        if location_key in GeoService._location_cache:
+            return GeoService._location_cache[location_key]
+        
+        # Add Israel to improve accuracy for Israeli cities
+        search_query = f"{location_name}, Israel"
+        
+        try:
+            params = {
+                'q': search_query,
+                'key': GeoService.API_KEY,
+                'limit': 1,
+                'no_annotations': 1,
+                'language': 'en'
+            }
+            
+            response = requests.get(GeoService.BASE_URL, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                
+                if data['results']:
+                    result = data['results'][0]
+                    lat = result['geometry']['lat']
+                    lng = result['geometry']['lng']
+                    
+                    coordinates = (lat, lng)
+                    
+                    # Cache the result
+                    GeoService._location_cache[location_key] = coordinates
+                    
+                    print(f"📍 Geocoded: {location_name} → {lat:.4f}, {lng:.4f}")
+                    return coordinates
+                else:
+                    print(f"❌ No results for: {location_name}")
+                    return None
+            else:
+                print(f"❌ API Error {response.status_code} for: {location_name}")
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Network error for {location_name}: {str(e)}")
+            return None
+        except Exception as e:
+            print(f"❌ Unexpected error for {location_name}: {str(e)}")
+            return None
+    
+    @staticmethod
+    def calculate_distance_km(coord1, coord2):
+        """Calculate distance between two coordinates using Haversine formula"""
+        if not coord1 or not coord2:
+            return None
+        
+        lat1, lon1 = coord1
+        lat2, lon2 = coord2
+        
+        # Convert to radians
+        lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+        
+        # Haversine formula
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        
+        a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+        c = 2 * asin(sqrt(a))
+        
+        # Earth radius in kilometers
+        R = 6371
+        distance = R * c
+        
+        return round(distance, 2)
+    
+    @staticmethod
+    def get_distance_score(distance_km):
+        """Convert distance to compatibility score (0-100)"""
+        if distance_km is None:
+            return 50  # Neutral if distance unknown
+        
+        if distance_km <= 2:
+            return 100      # Very close (same neighborhood)
+        elif distance_km <= 5:
+            return 90       # Close (same city center)
+        elif distance_km <= 10:
+            return 75       # Moderate (across city)
+        elif distance_km <= 20:
+            return 50       # Acceptable (neighboring cities)
+        elif distance_km <= 35:
+            return 25       # Far but doable
+        else:
+            return 10       # Very far
+    
+    @staticmethod
+    def update_player_coordinates(player_id):
+        """Update player coordinates based on their preferred location"""
+        from models.player import Player
+        
+        player = Player.query.get(player_id)
+        if not player or not player.preferred_location:
+            return False
+        
+        # Skip if coordinates already exist and location hasn't changed
+        if player.latitude and player.longitude:
+            return True
+        
+        coordinates = GeoService.get_coordinates(player.preferred_location)
+        if coordinates:
+            player.latitude = coordinates[0]
+            player.longitude = coordinates[1]
+            player.location_updated_at = db.func.current_timestamp()
+            
+            try:
+                db.session.commit()
+                print(f"✅ Updated coordinates for {player.user.full_name}: {coordinates}")
+                return True
+            except Exception as e:
+                db.session.rollback()
+                print(f"❌ Failed to save coordinates: {str(e)}")
+                return False
+        
+        return False
+    
+    @staticmethod
+    def batch_update_all_players():
+        """Update coordinates for all players (run once)"""
+        from models.player import Player
+        
+        players = Player.query.filter(
+            Player.preferred_location.isnot(None),
+            Player.latitude.is_(None)  # Only update players without coordinates
+        ).all()
+        
+        success_count = 0
+        total_count = len(players)
+        
+        print(f"🔄 Updating coordinates for {total_count} players...")
+        
+        for i, player in enumerate(players, 1):
+            print(f"Processing {i}/{total_count}: {player.user.full_name} ({player.preferred_location})")
+            
+            if GeoService.update_player_coordinates(player.id):
+                success_count += 1
+            
+            # Rate limiting - OpenCage allows 1 request per second for free accounts
+            if i < total_count:
+                time.sleep(1.1)  # Wait 1.1 seconds between requests
+        
+        print(f"✅ Updated {success_count}/{total_count} players successfully!")
+        return success_count
+    
+    @staticmethod
+    def get_nearby_players(center_lat, center_lng, radius_km=25):
+        """Find players within a specific radius"""
+        from models.player import Player
+        
+        # Simple bounding box calculation (more efficient than calculating exact distance for each)
+        # 1 degree ≈ 111 km, so we create a square around the center point
+        lat_offset = radius_km / 111.0
+        lng_offset = radius_km / (111.0 * cos(radians(center_lat)))
+        
+        min_lat = center_lat - lat_offset
+        max_lat = center_lat + lat_offset
+        min_lng = center_lng - lng_offset
+        max_lng = center_lng + lng_offset
+        
+        # Query players within bounding box
+        nearby_players = Player.query.filter(
+            Player.latitude.between(min_lat, max_lat),
+            Player.longitude.between(min_lng, max_lng),
+            Player.latitude.isnot(None),
+            Player.longitude.isnot(None)
+        ).all()
+        
+        # Calculate exact distances and filter
+        filtered_players = []
+        for player in nearby_players:
+            distance = GeoService.calculate_distance_km(
+                (center_lat, center_lng),
+                (player.latitude, player.longitude)
+            )
+            
+            if distance <= radius_km:
+                filtered_players.append({
+                    'player': player,
+                    'distance_km': distance
+                })
+        
+        # Sort by distance
+        filtered_players.sort(key=lambda x: x['distance_km'])
+        return filtered_players
+    
+    @staticmethod
+    def suggest_meeting_points(player1_coords, player2_coords, max_courts=5):
+        """Suggest courts that are convenient for both players"""
+        from models.court import Court
+        
+        if not player1_coords or not player2_coords:
+            return []
+        
+        # Find midpoint between players
+        mid_lat = (player1_coords[0] + player2_coords[0]) / 2
+        mid_lng = (player1_coords[1] + player2_coords[1]) / 2
+        
+        # Get courts near midpoint
+        courts = Court.query.filter(
+            Court.is_active == True,
+            Court.latitude.isnot(None),
+            Court.longitude.isnot(None)
+        ).all()
+        
+        court_suggestions = []
+        for court in courts:
+            court_coords = (court.latitude, court.longitude)
+            
+            # Calculate distances to both players
+            dist_to_p1 = GeoService.calculate_distance_km(player1_coords, court_coords)
+            dist_to_p2 = GeoService.calculate_distance_km(player2_coords, court_coords)
+            
+            if dist_to_p1 <= 30 and dist_to_p2 <= 30:  # Both within 30km
+                avg_distance = (dist_to_p1 + dist_to_p2) / 2
+                max_distance = max(dist_to_p1, dist_to_p2)
+                
+                # Fairness score - prefer courts that are equally distant
+                fairness_score = 100 - (abs(dist_to_p1 - dist_to_p2) * 5)
+                
+                court_suggestions.append({
+                    'court': court,
+                    'distance_to_player1': dist_to_p1,
+                    'distance_to_player2': dist_to_p2,
+                    'average_distance': avg_distance,
+                    'max_distance': max_distance,
+                    'fairness_score': fairness_score,
+                    'total_score': (100 - avg_distance * 2) + (fairness_score * 0.3)
+                })
+        
+        # Sort by total score (closer and fairer is better)
+        court_suggestions.sort(key=lambda x: x['total_score'], reverse=True)
+        
+        return court_suggestions[:max_courts]
+    
+    @staticmethod
+    def validate_api_key():
+        """Validate OpenCage API key is working"""
+        if not GeoService.API_KEY:
+            return False, "API key not found in environment variables"
+        
+        # Test with a simple query
+        test_result = GeoService.get_coordinates("Tel Aviv")
+        if test_result:
+            return True, f"API working - Tel Aviv coordinates: {test_result}"
+        else:
+            return False, "API key invalid or service unavailable"

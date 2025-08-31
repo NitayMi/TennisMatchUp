@@ -13,6 +13,7 @@ def init_db(app):
         from models.player import Player
         from models.court import Court, Booking
         from models.message import Message
+        from models.shared_booking import SharedBooking
         
         # Create all tables
         db.create_all()

@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
+from datetime import datetime
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
@@ -290,16 +291,29 @@ def chat(other_user_id):
 def send_message():
     """Send a message to another user"""
     user_id = session['user_id']
-    receiver_id = request.form.get('receiver_id', type=int)
-    content = request.form.get('content', '').strip()
+    
+    # Handle both JSON and form data
+    if request.is_json:
+        data = request.get_json()
+        receiver_id = data.get('receiver_id')
+        content = data.get('content', '').strip()
+    else:
+        receiver_id = request.form.get('receiver_id', type=int)
+        content = request.form.get('content', '').strip()
     
     if not receiver_id or not content:
-        return jsonify({'success': False, 'error': 'Missing required fields'})
+        if request.is_json:
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+        flash('Missing required fields', 'error')
+        return redirect(url_for('player.messages'))
     
     # Validate receiver exists
     receiver = User.query.get(receiver_id)
     if not receiver:
-        return jsonify({'success': False, 'error': 'Recipient not found'})
+        if request.is_json:
+            return jsonify({'success': False, 'error': 'Recipient not found'})
+        flash('Recipient not found', 'error')
+        return redirect(url_for('player.messages'))
     
     # Create message
     message = Message(
@@ -308,22 +322,30 @@ def send_message():
         content=content
     )
     
-    db.session.add(message)
-    db.session.commit()
-    
-    if request.is_json:
-        return jsonify({
-            'success': True,
-            'message': {
-                'id': message.id,
-                'content': message.content,
-                'created_at': message.created_at.isoformat(),
-                'sender_name': session.get('user_name', 'Unknown')
-            }
-        })
-    else:
-        flash('Message sent successfully!', 'success')
-        return redirect(url_for('player.chat', other_user_id=receiver_id))
+    try:
+        db.session.add(message)
+        db.session.commit()
+        
+        if request.is_json:
+            return jsonify({
+                'success': True,
+                'message': {
+                    'id': message.id,
+                    'content': message.content,
+                    'created_at': message.created_at.isoformat(),
+                    'sender_name': session.get('user_name', 'Unknown')
+                }
+            })
+        else:
+            flash('Message sent successfully!', 'success')
+            return redirect(url_for('player.chat', other_user_id=receiver_id))
+            
+    except Exception as e:
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'success': False, 'error': 'Failed to send message'})
+        flash('Failed to send message', 'error')
+        return redirect(url_for('player.messages'))
 
 @player_bp.route('/profile/edit', methods=['GET', 'POST'])
 @login_required
@@ -352,10 +374,6 @@ def edit_profile():
     return render_template('player/edit_profile.html',
                          player=player,
                          user=user)
-
-
-# Add this new route to your existing routes/player.py file
-# Insert this after the existing send_message route
 
 @player_bp.route('/send-match-request', methods=['POST'])
 @login_required
@@ -397,8 +415,7 @@ def send_match_request():
     message = Message(
         sender_id=user_id,
         receiver_id=target_user.id,
-        content=content,
-        message_type='match_request'
+        content=content
     )
     
     try:
@@ -415,53 +432,13 @@ def send_match_request():
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Failed to send match request'})
 
-@player_bp.route('/respond-to-match/<int:message_id>', methods=['POST'])
+@player_bp.route('/settings')
 @login_required
 @player_required
-def respond_to_match(message_id):
-    """Respond to a match request (accept/decline)"""
+def settings():
+    """Player settings page"""
     user_id = session['user_id']
-    message = Message.query.get_or_404(message_id)
+    user = User.query.get(user_id)
+    player = Player.query.filter_by(user_id=user_id).first()
     
-    # Validate this message belongs to current user
-    if message.receiver_id != user_id:
-        return jsonify({'success': False, 'error': 'Unauthorized'})
-    
-    response = request.get_json()
-    action = response.get('action')  # 'accept' or 'decline'
-    reply_message = response.get('message', '')
-    
-    if action not in ['accept', 'decline']:
-        return jsonify({'success': False, 'error': 'Invalid action'})
-    
-    # Mark original message as read
-    message.mark_as_read()
-    
-    # Create response message
-    if action == 'accept':
-        content = f"Great! I'd love to play with you. {reply_message}" if reply_message else "Great! I'd love to play with you. When would be a good time?"
-        response_type = 'match_accepted'
-    else:
-        content = f"Thanks for the invitation, but I can't play right now. {reply_message}" if reply_message else "Thanks for the invitation, but I can't play right now."
-        response_type = 'match_declined'
-    
-    response_message = Message(
-        sender_id=user_id,
-        receiver_id=message.sender_id,
-        content=content,
-        message_type=response_type
-    )
-    
-    try:
-        db.session.add(response_message)
-        db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'action': action,
-            'message': f'Response sent successfully!'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': 'Failed to send response'})
+    return render_template('player/settings.html', user=user, player=player)

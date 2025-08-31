@@ -179,10 +179,14 @@
                     </div>
                     
                     <!-- Last Activity -->
-                    {% if match.recent_activity %}
+                    {% if match.get('recent_activity') and match.recent_activity %}
                     <div class="card-footer text-muted small">
                         <i class="fas fa-clock me-1"></i>
-                        Last active: {{ match.recent_activity.strftime('%d/%m/%Y') }}
+                        {% if match.recent_activity is string %}
+                            Last active: {{ match.recent_activity }}
+                        {% else %}
+                            Last active: {{ match.recent_activity.strftime('%d/%m/%Y') if match.recent_activity.strftime else match.recent_activity }}
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>

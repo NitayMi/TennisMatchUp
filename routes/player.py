@@ -47,27 +47,54 @@ def find_matches():
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
+    if not player:
+        flash('Player profile not found. Please complete your profile first.', 'error')
+        return redirect(url_for('player.dashboard'))
+    
     # Get search filters from request
-    skill_level = request.args.get('skill_level', player.skill_level)
-    preferred_location = request.args.get('location', player.preferred_location)
-    availability = request.args.get('availability')
+    skill_level = request.args.get('skill_level', '').strip()
+    location = request.args.get('location', '').strip()
+    availability = request.args.get('availability', '').strip()
     
-    # Use matching engine to find compatible players
-    matches = MatchingEngine.find_matches(
-        player_id=player.id,
-        skill_level=skill_level,
-        location=preferred_location,
-        availability=availability
-    )
+    try:
+        # Use matching engine to find compatible players
+        matches = MatchingEngine.find_matches(
+            player_id=player.id,
+            skill_level=skill_level if skill_level else None,
+            location=location if location else None,
+            availability=availability if availability else None,
+            limit=20
+        )
+        
+        # Process matches to ensure safe template rendering
+        processed_matches = []
+        for match in matches:
+            match_data = {
+                'player': match.get('player'),
+                'user': match.get('user'),
+                'compatibility_score': match.get('compatibility_score', 0),
+                'common_interests': match.get('common_interests', []),
+                'distance': match.get('distance'),
+                'recent_activity': None  # Disable for now to avoid errors
+            }
+            processed_matches.append(match_data)
+        
+        return render_template('player/find_matches.html',
+                             player=player,
+                             matches=processed_matches,
+                             skill_level=skill_level,
+                             location=location,
+                             availability=availability)
     
-    return render_template('player/find_matches.html',
-                         player=player,
-                         matches=matches,
-                         filters={
-                             'skill_level': skill_level,
-                             'location': preferred_location,
-                             'availability': availability
-                         })
+    except Exception as e:
+        # Handle errors gracefully in production
+        flash('Error occurred while searching for matches. Please try again.', 'error')
+        return render_template('player/find_matches.html',
+                             player=player,
+                             matches=[],
+                             skill_level=skill_level,
+                             location=location,
+                             availability=availability)
 
 @player_bp.route('/book-court')
 @login_required

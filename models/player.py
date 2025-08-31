@@ -21,6 +21,11 @@ class Player(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
+    # Geographic fields for accurate matching
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    location_updated_at = db.Column(db.DateTime, nullable=True)
+    
     # Relationships
     bookings = db.relationship('Booking', backref='player', cascade='all, delete-orphan')
     
@@ -73,6 +78,36 @@ class Player(db.Model):
         
         return max(0, score)
     
+    def update_coordinates(self):
+        """Update player coordinates based on preferred location"""
+        from services.geo_service import GeoService
+        
+        if self.preferred_location:
+            coordinates = GeoService.get_coordinates(self.preferred_location)
+            if coordinates:
+                self.latitude = coordinates[0]
+                self.longitude = coordinates[1]
+                self.location_updated_at = datetime.now()
+                return True
+        return False
+    
+    def get_coordinates(self):
+        """Get player coordinates as tuple"""
+        if self.latitude and self.longitude:
+            return (self.latitude, self.longitude)
+        return None
+    
+    def distance_to(self, other_player):
+        """Calculate distance to another player"""
+        from services.geo_service import GeoService
+        
+        my_coords = self.get_coordinates()
+        other_coords = other_player.get_coordinates()
+        
+        if my_coords and other_coords:
+            return GeoService.calculate_distance_km(my_coords, other_coords)
+        return None
+    
     def to_dict(self):
         """Convert player to dictionary"""
         return {
@@ -97,39 +132,3 @@ class Player(db.Model):
     
     def __repr__(self):
         return f'<Player {self.user.full_name if self.user else "Unknown"} ({self.skill_level})>'
-    
-    
-    # Geographic fields for accurate matching
-    latitude = db.Column(db.Float, nullable=True)
-    longitude = db.Column(db.Float, nullable=True)
-    location_updated_at = db.Column(db.DateTime, nullable=True)
-    
-    def update_coordinates(self):
-        """Update player coordinates based on preferred location"""
-        from services.geo_service import GeoService
-        
-        if self.preferred_location:
-            coordinates = GeoService.get_coordinates(self.preferred_location)
-            if coordinates:
-                self.latitude = coordinates[0]
-                self.longitude = coordinates[1]
-                self.location_updated_at = db.func.current_timestamp()
-                return True
-        return False
-    
-    def get_coordinates(self):
-        """Get player coordinates as tuple"""
-        if self.latitude and self.longitude:
-            return (self.latitude, self.longitude)
-        return None
-    
-    def distance_to(self, other_player):
-        """Calculate distance to another player"""
-        from services.geo_service import GeoService
-        
-        my_coords = self.get_coordinates()
-        other_coords = other_player.get_coordinates()
-        
-        if my_coords and other_coords:
-            return GeoService.calculate_distance_km(my_coords, other_coords)
-        return None

@@ -17,11 +17,16 @@ def migrate_database():
     print("=" * 50)
     
     try:
-        # Connect to SQLite database
-        db_path = 'tennismatchup.db'
+        # Updated database path to match what Flask creates
+        db_path = 'instance/tennis_matchup.db'  # Correct path in instance folder
         
         if not os.path.exists(db_path):
-            print("❌ Database file not found. Run 'python app.py' first to create the database.")
+            print(f"❌ Database file not found: {db_path}")
+            print("Available database files:")
+            for file in os.listdir('.'):
+                if file.endswith('.db'):
+                    print(f"  - {file}")
+            print("Please check if app.py created a different database file.")
             return False
         
         conn = sqlite3.connect(db_path)

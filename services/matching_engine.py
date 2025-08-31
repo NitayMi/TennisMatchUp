@@ -1,6 +1,6 @@
 """
-Matching Engine for TennisMatchUp
-Handles player-to-player matching and court recommendations
+Perfect Matching Engine for TennisMatchUp
+Real geographic calculations with intelligent compatibility scoring
 """
 from datetime import datetime, timedelta
 from models.database import db
@@ -8,18 +8,25 @@ from models.user import User
 from models.player import Player
 from models.court import Court, Booking
 from services.rule_engine import RuleEngine
+from services.geo_service import GeoService
 from sqlalchemy import func, and_, or_
 import random
+import time
 
 class MatchingEngine:
-    """Intelligent matching system for players and courts"""
+    """Intelligent matching system with real geographic precision"""
     
     @staticmethod
     def find_matches(player_id, skill_level=None, location=None, availability=None, limit=10):
-        """Find compatible players for matching"""
+        """Find compatible players with geographic precision"""
         current_player = Player.query.get(player_id)
         if not current_player:
             return []
+        
+        # Ensure current player has coordinates
+        if not current_player.latitude or not current_player.longitude:
+            current_player.update_coordinates()
+            db.session.commit()
         
         # Build base query
         query = Player.query.join(User).filter(
@@ -29,45 +36,79 @@ class MatchingEngine:
         
         # Apply filters
         if skill_level:
-            # Find players with compatible skill levels
             skill_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}
             target_level = skill_levels.get(skill_level, 2)
             compatible_levels = []
             
             for level_name, level_num in skill_levels.items():
-                if abs(level_num - target_level) <= RuleEngine.MAX_SKILL_LEVEL_DIFFERENCE:
+                if abs(level_num - target_level) <= 1:  # Allow ±1 level difference
                     compatible_levels.append(level_name)
             
             query = query.filter(Player.skill_level.in_(compatible_levels))
         
         if location:
-            # Simple location matching - in production would use geospatial queries
             query = query.filter(Player.preferred_location.ilike(f'%{location}%'))
         
         if availability:
-            query = query.filter(Player.availability == availability)
+            # More flexible availability matching
+            if availability == 'flexible':
+                # Flexible matches with everyone
+                pass
+            else:
+                query = query.filter(
+                    or_(
+                        Player.availability == availability,
+                        Player.availability == 'flexible'
+                    )
+                )
         
         # Get potential matches
-        potential_matches = query.limit(50).all()  # Get more than needed for scoring
+        potential_matches = query.limit(100).all()  # Get more for better scoring
         
         # Score and rank matches
         scored_matches = []
+        current_coords = current_player.get_coordinates()
+        
         for match_player in potential_matches:
-            validation_result = RuleEngine.validate_player_matching(player_id, match_player.id)
-            if validation_result['valid']:
-                # Calculate detailed compatibility score
-                compatibility_score = MatchingEngine._calculate_player_compatibility(
-                    current_player, match_player
-                )
-                
-                scored_matches.append({
-                    'player': match_player,
-                    'user': match_player.user,
-                    'compatibility_score': compatibility_score,
-                    'common_interests': MatchingEngine._find_common_interests(current_player, match_player),
-                    'distance': MatchingEngine._calculate_distance(current_player.preferred_location, match_player.preferred_location),
-                    'recent_activity': MatchingEngine._get_recent_activity(match_player.id)
-                })
+            # Validate basic compatibility
+            validation_result = RuleEngine.validate_player_matching(current_player.id, match_player.id)
+            if not validation_result['valid']:
+                continue
+            
+            # Ensure match player has coordinates
+            if not match_player.latitude or not match_player.longitude:
+                match_player.update_coordinates()
+                db.session.commit()
+            
+            # Calculate real distance
+            match_coords = match_player.get_coordinates()
+            real_distance = None
+            if current_coords and match_coords:
+                real_distance = GeoService.calculate_distance_km(current_coords, match_coords)
+            
+            # Skip if too far (more than 50km)
+            if real_distance and real_distance > 50:
+                continue
+            
+            # Calculate comprehensive compatibility score
+            compatibility_score = MatchingEngine._calculate_perfect_compatibility(
+                current_player, match_player, real_distance
+            )
+            
+            # Skip low compatibility scores
+            if compatibility_score < 25:
+                continue
+            
+            scored_matches.append({
+                'player': match_player,
+                'user': match_player.user,
+                'compatibility_score': compatibility_score,
+                'distance': real_distance,
+                'common_interests': MatchingEngine._find_smart_common_interests(current_player, match_player),
+                'recent_activity': MatchingEngine._get_activity_summary(match_player.id),
+                'match_quality': MatchingEngine._determine_match_quality(compatibility_score),
+                'geographic_zone': MatchingEngine._get_geographic_zone(real_distance)
+            })
         
         # Sort by compatibility score
         scored_matches.sort(key=lambda x: x['compatibility_score'], reverse=True)
@@ -75,83 +116,598 @@ class MatchingEngine:
         return scored_matches[:limit]
     
     @staticmethod
-    # def _calculate_player_compatibility(player1, player2):
-    #     """Calculate detailed compatibility score between two players"""
-    #     score = 100
+    def _calculate_perfect_compatibility(player1, player2, real_distance=None):
+        """Calculate realistic compatibility score (25-85 range)"""
         
-    #     # Skill level compatibility (40% weight)
-    #     skill_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}
-    #     skill_diff = abs(skill_levels[player1.skill_level] - skill_levels[player2.skill_level])
-    #     skill_score = max(0, 100 - (skill_diff * 30))
-    #     score = score * 0.6 + skill_score * 0.4
+        # Start with base score
+        total_points = 0
+        max_possible_points = 100
         
-    #     # Location compatibility (30% weight)
-    #     location_score = 100 if player1.preferred_location.lower() == player2.preferred_location.lower() else 50
-    #     score = score * 0.7 + location_score * 0.3
+        # 1. Skill Level Compatibility (35 points max)
+        skill_points = MatchingEngine._calculate_skill_compatibility(
+            player1.skill_level, player2.skill_level
+        )
+        total_points += skill_points
         
-    #     # Availability compatibility (20% weight)
-    #     availability_score = 100 if player1.availability == player2.availability else 60
-    #     score = score * 0.8 + availability_score * 0.2
-        
-    #     # Activity level (10% weight) - players who are more active get higher scores
-    #     player1_bookings = Booking.query.filter_by(player_id=player1.id).count()
-    #     player2_bookings = Booking.query.filter_by(player_id=player2.id).count()
-    #     activity_score = min(100, (player2_bookings / max(1, player1_bookings)) * 50 + 50)
-    #     score = score * 0.9 + activity_score * 0.1
-        
-    #     return round(score, 1)
-    
-    @staticmethod
-    def _find_common_interests(player1, player2):
-        """Find common interests between players"""
-        # In a real implementation, this would check shared preferences, playing styles, etc.
-        common_interests = []
-        
-        if player1.skill_level == player2.skill_level:
-            common_interests.append('Same skill level')
-        
-        if player1.preferred_location.lower() == player2.preferred_location.lower():
-            common_interests.append('Same preferred location')
-        
-        if player1.availability == player2.availability:
-            common_interests.append('Similar availability')
-        
-        return common_interests
-    
-    @staticmethod
-    def _calculate_distance(location1, location2):
-        """Calculate distance between locations (simplified)"""
-        # In production, would use actual geocoding and distance calculation
-        if location1.lower() == location2.lower():
-            return random.uniform(0, 5)  # Same city, small distance
+        # 2. Geographic Compatibility (25 points max)
+        if real_distance is not None:
+            geo_points = MatchingEngine._calculate_geographic_compatibility(real_distance)
         else:
-            return random.uniform(10, 50)  # Different locations
+            # Fallback to text-based location matching
+            geo_points = MatchingEngine._calculate_location_text_compatibility(
+                player1.preferred_location, player2.preferred_location
+            )
+        total_points += geo_points
+        
+        # 3. Availability Compatibility (20 points max)
+        availability_points = MatchingEngine._calculate_availability_compatibility(
+            player1.availability, player2.availability
+        )
+        total_points += availability_points
+        
+        # 4. Activity Level Compatibility (10 points max)
+        activity_points = MatchingEngine._calculate_activity_compatibility(player1, player2)
+        total_points += activity_points
+        
+        # 5. Bio/Personality Compatibility (10 points max)
+        personality_points = MatchingEngine._calculate_personality_compatibility(
+            player1.bio, player2.bio
+        )
+        total_points += personality_points
+        
+        # Calculate final percentage
+        percentage = (total_points / max_possible_points) * 100
+        
+        # Apply realistic constraints
+        if percentage > 85:
+            percentage = 85  # Cap at 85% - no one is perfect
+        elif percentage < 25:
+            percentage = 25  # Minimum viable match
+        
+        return round(percentage)
     
     @staticmethod
-    def _get_recent_activity(player_id):
-        """Get recent activity summary for a player"""
-        # Get bookings from last 30 days
+    def _calculate_skill_compatibility(skill1, skill2):
+        """Calculate skill level compatibility (0-35 points)"""
+        skill_map = {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}
+        
+        level1 = skill_map.get(skill1, 2)
+        level2 = skill_map.get(skill2, 2)
+        skill_diff = abs(level1 - level2)
+        
+        if skill_diff == 0:
+            return 35  # Perfect skill match
+        elif skill_diff == 1:
+            return 28  # Close skill match
+        elif skill_diff == 2:
+            return 15  # Manageable difference
+        else:
+            return 5   # Too big difference
+    
+    @staticmethod
+    def _calculate_geographic_compatibility(distance_km):
+        """Calculate geographic compatibility based on real distance (0-25 points)"""
+        if distance_km <= 2:
+            return 25       # Same neighborhood
+        elif distance_km <= 5:
+            return 23       # Same city center
+        elif distance_km <= 10:
+            return 20       # Across city
+        elif distance_km <= 15:
+            return 16       # Neighboring areas
+        elif distance_km <= 25:
+            return 12       # Same metropolitan area
+        elif distance_km <= 35:
+            return 8        # Different cities but doable
+        elif distance_km <= 50:
+            return 4        # Far but possible
+        else:
+            return 0        # Too far
+    
+    @staticmethod
+    def _calculate_location_text_compatibility(loc1, loc2):
+        """Fallback text-based location matching (0-25 points)"""
+        if not loc1 or not loc2:
+            return 12  # Neutral
+        
+        loc1_clean = loc1.lower().strip()
+        loc2_clean = loc2.lower().strip()
+        
+        # Exact match
+        if loc1_clean == loc2_clean:
+            return 25
+        
+        # Metropolitan area matching
+        tel_aviv_metro = ['tel aviv', 'tel-aviv', 'ramat gan', 'herzliya', 'givatayim', 'holon']
+        jerusalem_metro = ['jerusalem', 'yerushalayim', 'beit shemesh']
+        haifa_metro = ['haifa', 'netanya', 'hadera']
+        
+        def get_metro_area(location):
+            for metro_list, name in [(tel_aviv_metro, 'tel_aviv'), 
+                                   (jerusalem_metro, 'jerusalem'), 
+                                   (haifa_metro, 'haifa')]:
+                if any(city in location for city in metro_list):
+                    return name
+            return location
+        
+        metro1 = get_metro_area(loc1_clean)
+        metro2 = get_metro_area(loc2_clean)
+        
+        if metro1 == metro2:
+            return 20  # Same metropolitan area
+        else:
+            return 8   # Different areas
+    
+    @staticmethod
+    def _calculate_availability_compatibility(avail1, avail2):
+        """Calculate availability compatibility (0-20 points)"""
+        if not avail1 or not avail2:
+            return 10  # Neutral
+        
+        avail1_clean = avail1.lower()
+        avail2_clean = avail2.lower()
+        
+        # Exact match
+        if avail1_clean == avail2_clean:
+            return 20
+        
+        # Flexible is compatible with everything
+        if 'flexible' in [avail1_clean, avail2_clean]:
+            return 18
+        
+        # Compatibility matrix
+        compatibility_scores = {
+            ('weekdays', 'evenings'): 15,
+            ('weekends', 'evenings'): 12,
+            ('weekdays', 'weekends'): 8
+        }
+        
+        # Check both directions
+        score = compatibility_scores.get((avail1_clean, avail2_clean)) or \
+                compatibility_scores.get((avail2_clean, avail1_clean)) or 6
+        
+        return score
+    
+    @staticmethod
+    def _calculate_activity_compatibility(player1, player2):
+        """Calculate activity level compatibility (0-10 points)"""
+        try:
+            # Get recent activity for both players
+            recent_cutoff = datetime.now() - timedelta(days=30)
+            
+            p1_bookings = Booking.query.filter(
+                Booking.player_id == player1.id,
+                Booking.created_at >= recent_cutoff
+            ).count()
+            
+            p2_bookings = Booking.query.filter(
+                Booking.player_id == player2.id,
+                Booking.created_at >= recent_cutoff
+            ).count()
+            
+            # Both active
+            if p1_bookings >= 3 and p2_bookings >= 3:
+                return 10
+            # One very active, one moderately active
+            elif (p1_bookings >= 3 and p2_bookings >= 1) or (p2_bookings >= 3 and p1_bookings >= 1):
+                return 8
+            # Both moderately active
+            elif p1_bookings >= 1 and p2_bookings >= 1:
+                return 7
+            # One active, one new
+            elif p1_bookings >= 1 or p2_bookings >= 1:
+                return 5
+            else:
+                # Both new players
+                return 6
+        except:
+            return 6  # Default if query fails
+    
+    @staticmethod
+    def _calculate_personality_compatibility(bio1, bio2):
+        """Calculate personality compatibility from bio text (0-10 points)"""
+        if not bio1 or not bio2:
+            return 6  # Neutral
+        
+        bio1_lower = bio1.lower()
+        bio2_lower = bio2.lower()
+        
+        # Personality indicators
+        competitive_words = ['competitive', 'tournament', 'serious', 'advanced', 'professional']
+        social_words = ['fun', 'social', 'friendly', 'casual', 'enjoy', 'love']
+        learning_words = ['learning', 'improving', 'practice', 'beginner', 'new']
+        
+        def get_personality_profile(bio):
+            competitive_count = sum(1 for word in competitive_words if word in bio)
+            social_count = sum(1 for word in social_words if word in bio)
+            learning_count = sum(1 for word in learning_words if word in bio)
+            
+            return {
+                'competitive': competitive_count,
+                'social': social_count,
+                'learning': learning_count
+            }
+        
+        profile1 = get_personality_profile(bio1_lower)
+        profile2 = get_personality_profile(bio2_lower)
+        
+        # Calculate compatibility
+        total_compatibility = 0
+        
+        # Similar competitive level
+        comp_diff = abs(profile1['competitive'] - profile2['competitive'])
+        if comp_diff <= 1:
+            total_compatibility += 4
+        
+        # Both social or both serious
+        if profile1['social'] > 0 and profile2['social'] > 0:
+            total_compatibility += 3
+        elif profile1['competitive'] > 0 and profile2['competitive'] > 0:
+            total_compatibility += 3
+        
+        # Learning compatibility
+        if profile1['learning'] > 0 and profile2['learning'] > 0:
+            total_compatibility += 3
+        
+        return min(10, total_compatibility)
+    
+    @staticmethod
+    def _find_smart_common_interests(player1, player2):
+        """Find detailed common interests"""
+        interests = []
+        
+        # Skill level
+        if player1.skill_level == player2.skill_level:
+            interests.append(f"Both {player1.skill_level} level")
+        elif abs(MatchingEngine._skill_level_to_num(player1.skill_level) - 
+                MatchingEngine._skill_level_to_num(player2.skill_level)) == 1:
+            interests.append("Compatible skill levels")
+        
+        # Geographic proximity
+        coords1 = player1.get_coordinates()
+        coords2 = player2.get_coordinates()
+        if coords1 and coords2:
+            distance = GeoService.calculate_distance_km(coords1, coords2)
+            if distance <= 5:
+                interests.append("Very close location")
+            elif distance <= 15:
+                interests.append("Same area")
+        
+        # Availability
+        if player1.availability == player2.availability:
+            interests.append(f"Both available {player1.availability}")
+        elif 'flexible' in [player1.availability, player2.availability]:
+            interests.append("Flexible scheduling")
+        
+        # Bio analysis
+        if player1.bio and player2.bio:
+            bio1_words = set(player1.bio.lower().split())
+            bio2_words = set(player2.bio.lower().split())
+            
+            tennis_keywords = {'competitive', 'social', 'fun', 'doubles', 'singles', 'tournament', 'practice'}
+            common_tennis_words = bio1_words.intersection(bio2_words).intersection(tennis_keywords)
+            
+            for word in list(common_tennis_words)[:2]:  # Max 2 bio interests
+                interests.append(f"Both {word}")
+        
+        return interests[:4]  # Max 4 interests
+    
+    @staticmethod
+    def _skill_level_to_num(skill_level):
+        """Convert skill level to number"""
+        return {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}.get(skill_level, 2)
+    
+    @staticmethod
+    def _get_activity_summary(player_id):
+        """Get comprehensive activity summary"""
         thirty_days_ago = datetime.now() - timedelta(days=30)
+        
         recent_bookings = Booking.query.filter(
             Booking.player_id == player_id,
             Booking.created_at >= thirty_days_ago
         ).count()
         
+        # Determine activity level
+        if recent_bookings >= 8:
+            activity_level = 'Very High'
+        elif recent_bookings >= 4:
+            activity_level = 'High'
+        elif recent_bookings >= 2:
+            activity_level = 'Medium'
+        elif recent_bookings >= 1:
+            activity_level = 'Low'
+        else:
+            activity_level = 'New Player'
+        
         return {
             'recent_bookings': recent_bookings,
-            'activity_level': 'High' if recent_bookings > 4 else 'Medium' if recent_bookings > 1 else 'Low'
+            'activity_level': activity_level,
+            'days_since_last_booking': MatchingEngine._get_days_since_last_booking(player_id)
         }
+    
+    @staticmethod
+    def _get_days_since_last_booking(player_id):
+        """Get days since last booking"""
+        try:
+            last_booking = Booking.query.filter_by(player_id=player_id).order_by(
+                Booking.created_at.desc()
+            ).first()
+            
+            if last_booking:
+                days_diff = (datetime.now() - last_booking.created_at).days
+                return days_diff
+            else:
+                return 999  # Never booked
+        except:
+            return 999
+    
+    @staticmethod
+    def _determine_match_quality(compatibility_score):
+        """Determine match quality description"""
+        if compatibility_score >= 75:
+            return "Excellent Match"
+        elif compatibility_score >= 65:
+            return "Very Good Match"
+        elif compatibility_score >= 50:
+            return "Good Match"
+        elif compatibility_score >= 35:
+            return "Fair Match"
+        else:
+            return "Poor Match"
+    
+    @staticmethod
+    def _get_geographic_zone(distance_km):
+        """Get geographic zone description"""
+        if distance_km is None:
+            return "Unknown Distance"
+        elif distance_km <= 5:
+            return "Very Close"
+        elif distance_km <= 15:
+            return "Nearby"
+        elif distance_km <= 30:
+            return "Same Region"
+        else:
+            return "Different Region"
+    
+    @staticmethod
+    def recommend_courts_for_pair(player1_id, player2_id, max_courts=5):
+        """Recommend optimal courts for two matched players"""
+        player1 = Player.query.get(player1_id)
+        player2 = Player.query.get(player2_id)
+        
+        if not player1 or not player2:
+            return []
+        
+        coords1 = player1.get_coordinates()
+        coords2 = player2.get_coordinates()
+        
+        if not coords1 or not coords2:
+            # Fallback to text-based location
+            return MatchingEngine._recommend_courts_by_location_text(player1, player2, max_courts)
+        
+        # Use geographic service to find optimal meeting points
+        court_suggestions = GeoService.suggest_meeting_points(coords1, coords2, max_courts * 2)
+        
+        # Add business logic scoring
+        enhanced_suggestions = []
+        for suggestion in court_suggestions:
+            court = suggestion['court']
+            
+            # Apply business rules
+            business_score = RuleEngine.calculate_court_recommendation_score(court, player1)
+            business_score += RuleEngine.calculate_court_recommendation_score(court, player2)
+            business_score = business_score / 2  # Average
+            
+            # Combine geographic and business scores
+            total_score = (suggestion['total_score'] * 0.6) + (business_score * 0.4)
+            
+            enhanced_suggestions.append({
+                'court': court,
+                'geographic_data': suggestion,
+                'business_score': business_score,
+                'total_score': total_score,
+                'recommendation_reason': MatchingEngine._generate_court_recommendation_reason(suggestion)
+            })
+        
+        # Sort by total score
+        enhanced_suggestions.sort(key=lambda x: x['total_score'], reverse=True)
+        
+        return enhanced_suggestions[:max_courts]
+    
+    @staticmethod
+    def _recommend_courts_by_location_text(player1, player2, max_courts=5):
+        """Fallback court recommendation without coordinates"""
+        # Simple text-based court recommendation
+        location_priority = [player1.preferred_location, player2.preferred_location]
+        
+        courts = Court.query.filter(Court.is_active == True).all()
+        court_scores = []
+        
+        for court in courts:
+            score = 50  # Base score
+            
+            # Location matching
+            for player_location in location_priority:
+                if player_location.lower() in court.location.lower():
+                    score += 25
+                    break
+            
+            # Business factors
+            business_score = RuleEngine.calculate_court_recommendation_score(court, player1)
+            score += business_score * 0.3
+            
+            court_scores.append({
+                'court': court,
+                'score': score,
+                'recommendation_reason': f"Good option in {court.location}"
+            })
+        
+        court_scores.sort(key=lambda x: x['score'], reverse=True)
+        return court_scores[:max_courts]
+    
+    @staticmethod
+    def _generate_court_recommendation_reason(suggestion):
+        """Generate human-readable recommendation reason"""
+        reasons = []
+        
+        avg_dist = suggestion.get('average_distance', 0)
+        fairness = suggestion.get('fairness_score', 0)
+        
+        if avg_dist <= 10:
+            reasons.append("close to both players")
+        elif avg_dist <= 20:
+            reasons.append("reasonable distance")
+        
+        if fairness >= 80:
+            reasons.append("equally convenient")
+        elif fairness >= 60:
+            reasons.append("fairly balanced location")
+        
+        return ", ".join(reasons) if reasons else "available option"
+    
+    @staticmethod
+    def batch_update_all_player_coordinates():
+        """Update coordinates for all players - run once after API setup"""
+        print("🔄 Starting batch coordinate update...")
+        
+        players_without_coords = Player.query.filter(
+            Player.preferred_location.isnot(None),
+            Player.latitude.is_(None)
+        ).all()
+        
+        if not players_without_coords:
+            print("✅ All players already have coordinates!")
+            return True
+        
+        print(f"📍 Found {len(players_without_coords)} players needing coordinate updates")
+        
+        success_count = 0
+        for i, player in enumerate(players_without_coords, 1):
+            print(f"Processing {i}/{len(players_without_coords)}: {player.user.full_name} ({player.preferred_location})")
+            
+            coordinates = GeoService.get_coordinates(player.preferred_location)
+            if coordinates:
+                player.latitude = coordinates[0]
+                player.longitude = coordinates[1]
+                player.location_updated_at = datetime.now()
+                
+                try:
+                    db.session.commit()
+                    success_count += 1
+                    print(f"  ✅ Updated: {coordinates[0]:.4f}, {coordinates[1]:.4f}")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"  ❌ DB Error: {str(e)}")
+            else:
+                print(f"  ❌ Could not geocode: {player.preferred_location}")
+            
+            # Rate limiting - 1 request per second for free tier
+            if i < len(players_without_coords):
+                time.sleep(1.1)
+        
+        print(f"✅ Coordinate update complete: {success_count}/{len(players_without_coords)} successful")
+        return success_count == len(players_without_coords)
     
     @staticmethod
     def get_recent_matches(player_id, limit=5):
         """Get recent match recommendations for a player"""
-        # In a real system, this would store match history and recommendations
-        # For now, return recent compatible players
         return MatchingEngine.find_matches(player_id, limit=limit)
     
     @staticmethod
+    def get_match_insights(player_id):
+        """Generate insights about player's matching potential"""
+        player = Player.query.get(player_id)
+        if not player:
+            return {}
+        
+        # Get all possible matches
+        all_matches = MatchingEngine.find_matches(player_id, limit=50)
+        
+        if not all_matches:
+            return {
+                'total_potential_matches': 0,
+                'avg_compatibility': 0,
+                'insights': ["No potential matches found - try updating your profile"],
+                'recommendations': ["Expand your search criteria", "Update your location", "Add more details to your bio"]
+            }
+        
+        # Calculate statistics
+        compatibility_scores = [match['compatibility_score'] for match in all_matches]
+        avg_compatibility = sum(compatibility_scores) / len(compatibility_scores)
+        
+        high_quality_matches = len([score for score in compatibility_scores if score >= 65])
+        
+        insights = []
+        recommendations = []
+        
+        # Analyze compatibility distribution
+        if avg_compatibility >= 60:
+            insights.append(f"You have excellent compatibility with other players (avg: {avg_compatibility:.0f}%)")
+        elif avg_compatibility >= 45:
+            insights.append(f"You have good compatibility potential (avg: {avg_compatibility:.0f}%)")
+        else:
+            insights.append(f"Your compatibility could be improved (avg: {avg_compatibility:.0f}%)")
+            recommendations.append("Consider updating your skill level or location preferences")
+        
+        # High quality match analysis
+        if high_quality_matches >= 5:
+            insights.append(f"You have {high_quality_matches} high-quality potential matches")
+        elif high_quality_matches >= 2:
+            insights.append(f"You have {high_quality_matches} high-quality matches available")
+        else:
+            insights.append("Limited high-quality matches found")
+            recommendations.append("Try being more flexible with your availability")
+        
+        # Geographic analysis
+        if player.latitude and player.longitude:
+            close_matches = len([m for m in all_matches if m['distance'] and m['distance'] <= 10])
+            if close_matches >= 3:
+                insights.append(f"{close_matches} players are within 10km of you")
+            else:
+                recommendations.append("Consider expanding your location radius")
+        
+        return {
+            'total_potential_matches': len(all_matches),
+            'avg_compatibility': round(avg_compatibility, 1),
+            'high_quality_matches': high_quality_matches,
+            'insights': insights,
+            'recommendations': recommendations[:3]  # Max 3 recommendations
+        }
+    
+    # Legacy methods to maintain compatibility with existing code
+    @staticmethod
+    def _calculate_distance(location1, location2):
+        """Legacy distance calculation - now uses real coordinates when available"""
+        # Try to get players by location name and calculate real distance
+        players1 = Player.query.filter(Player.preferred_location.ilike(f'%{location1}%')).first()
+        players2 = Player.query.filter(Player.preferred_location.ilike(f'%{location2}%')).first()
+        
+        if players1 and players2:
+            coords1 = players1.get_coordinates()
+            coords2 = players2.get_coordinates()
+            
+            if coords1 and coords2:
+                return GeoService.calculate_distance_km(coords1, coords2)
+        
+        # Fallback to old text-based estimation
+        if location1.lower() == location2.lower():
+            return random.uniform(0, 5)
+        else:
+            return random.uniform(10, 50)
+    
+    @staticmethod
+    def _get_recent_activity(player_id):
+        """Legacy method - maintained for compatibility"""
+        activity_summary = MatchingEngine._get_activity_summary(player_id)
+        
+        return {
+            'recent_bookings': activity_summary['recent_bookings'],
+            'activity_level': activity_summary['activity_level']
+        }
+    
+    @staticmethod
     def recommend_courts(player_id, location=None, max_price=None, court_type=None, limit=10):
-        """Recommend courts for a player based on preferences"""
+        """Recommend courts for a player based on preferences and location"""
         player = Player.query.get(player_id)
         if not player:
             return []
@@ -177,8 +733,19 @@ class MatchingEngine:
         
         # Score and rank courts
         scored_courts = []
+        player_coords = player.get_coordinates()
+        
         for court in potential_courts:
-            recommendation_score = RuleEngine.calculate_court_recommendation_score(court, player)
+            # Calculate distance if coordinates available
+            distance_km = None
+            if player_coords and court.latitude and court.longitude:
+                court_coords = (court.latitude, court.longitude)
+                distance_km = GeoService.calculate_distance_km(player_coords, court_coords)
+            
+            # Calculate recommendation score
+            recommendation_score = MatchingEngine._calculate_court_recommendation_score(
+                court, player, distance_km
+            )
             
             # Get additional information
             availability_score = MatchingEngine._calculate_court_availability(court.id)
@@ -190,7 +757,7 @@ class MatchingEngine:
                 'recommendation_score': recommendation_score,
                 'availability_score': availability_score,
                 'owner_rating': owner_rating,
-                'distance': MatchingEngine._calculate_distance(player.preferred_location, court.location),
+                'distance': distance_km,
                 'recent_bookings': MatchingEngine._get_court_recent_bookings(court.id)
             })
         
@@ -198,6 +765,44 @@ class MatchingEngine:
         scored_courts.sort(key=lambda x: x['recommendation_score'], reverse=True)
         
         return scored_courts[:limit]
+    
+    @staticmethod
+    def _calculate_court_recommendation_score(court, player, distance_km=None):
+        """Calculate court recommendation score for a player"""
+        score = 50  # Base score
+        
+        # Distance factor (30 points max)
+        if distance_km is not None:
+            if distance_km <= 5:
+                score += 30
+            elif distance_km <= 10:
+                score += 25
+            elif distance_km <= 20:
+                score += 15
+            elif distance_km <= 35:
+                score += 8
+            else:
+                score += 2
+        else:
+            # Text-based location matching
+            if player.preferred_location.lower() in court.location.lower():
+                score += 25
+            else:
+                score += 10
+        
+        # Price factor (20 points max)
+        if court.hourly_rate <= 50:
+            score += 20  # Very affordable
+        elif court.hourly_rate <= 100:
+            score += 15  # Affordable
+        elif court.hourly_rate <= 150:
+            score += 10  # Moderate
+        elif court.hourly_rate <= 200:
+            score += 5   # Expensive
+        else:
+            score += 1   # Very expensive
+        
+        return min(100, score)
     
     @staticmethod
     def _calculate_court_availability(court_id, days_ahead=7):
@@ -286,13 +891,13 @@ class MatchingEngine:
         else:
             reasons.append("Good potential match")
         
-        if match_data['distance'] <= 10:
+        if match_data.get('distance') and match_data['distance'] <= 10:
             reasons.append("nearby location")
         
-        if match_data['recent_activity']['activity_level'] == 'High':
+        if match_data.get('recent_activity', {}).get('activity_level') == 'High':
             reasons.append("active player")
         
-        if match_data['common_interests']:
+        if match_data.get('common_interests'):
             reasons.append(f"shares {len(match_data['common_interests'])} common interests")
         
         return ", ".join(reasons[:3])  # Limit to top 3 reasons
@@ -300,7 +905,9 @@ class MatchingEngine:
     @staticmethod
     def _suggest_next_action(match_data):
         """Suggest what action the player should take"""
-        if match_data['recent_activity']['activity_level'] == 'High':
+        activity_level = match_data.get('recent_activity', {}).get('activity_level', 'Unknown')
+        
+        if activity_level == 'High':
             return "Send a message to arrange a game"
         elif match_data['compatibility_score'] >= 85:
             return "View their profile and send an introduction"
@@ -320,14 +927,12 @@ class MatchingEngine:
             Booking.status.in_(['confirmed', 'pending'])
         ).order_by(Booking.start_time).all()
         
-        # Generate all possible slots (business hours)
-        business_hours = RuleEngine.get_business_hours()
-        start_hour = int(business_hours['open_time'].split(':')[0])
-        end_hour = int(business_hours['close_time'].split(':')[0])
-        
+        # Generate all possible slots (business hours: 6 AM to 10 PM)
         available_slots = []
-        current_hour = start_hour
+        start_hour = 6
+        end_hour = 22
         
+        current_hour = start_hour
         while current_hour + duration_hours <= end_hour:
             slot_start = datetime.strptime(f'{current_hour:02d}:00', '%H:%M').time()
             slot_end = datetime.strptime(f'{current_hour + duration_hours:02d}:00', '%H:%M').time()
@@ -437,157 +1042,3 @@ class MatchingEngine:
             'avg_rate': round(float(item.avg_rate), 2) if item.avg_rate else 0,
             'trend_score': item.recent_bookings * 10 + item.court_count * 5
         } for item in trending]
-    
-    @staticmethod
-    def smart_scheduling_suggestions(player_id, preferred_date=None, duration=1):
-        """Suggest optimal booking times based on player history and court availability"""
-        player = Player.query.get(player_id)
-        if not player:
-            return []
-        
-        # If no preferred date, suggest next 7 days
-        if not preferred_date:
-            dates_to_check = [(datetime.now().date() + timedelta(days=i)) for i in range(1, 8)]
-        else:
-            if isinstance(preferred_date, str):
-                preferred_date = datetime.strptime(preferred_date, '%Y-%m-%d').date()
-            dates_to_check = [preferred_date]
-        
-        suggestions = []
-        
-        for check_date in dates_to_check:
-            # Get recommended courts for player
-            recommended_courts = MatchingEngine.recommend_courts(
-                player_id, 
-                location=player.preferred_location,
-                limit=5
-            )
-            
-            for court_info in recommended_courts:
-                court = court_info['court']
-                
-                # Find available slots
-                available_slots = MatchingEngine.find_available_time_slots(
-                    court.id, check_date, duration
-                )
-                
-                for slot in available_slots:
-                    # Calculate dynamic pricing
-                    dynamic_rate = RuleEngine.apply_dynamic_pricing(
-                        court.hourly_rate,
-                        check_date,
-                        slot['start_time']
-                    )
-                    
-                    suggestions.append({
-                        'court': court,
-                        'date': check_date.strftime('%Y-%m-%d'),
-                        'start_time': slot['start_time'],
-                        'end_time': slot['end_time'],
-                        'base_rate': court.hourly_rate,
-                        'dynamic_rate': dynamic_rate,
-                        'savings': court.hourly_rate - dynamic_rate if dynamic_rate < court.hourly_rate else 0,
-                        'recommendation_score': court_info['recommendation_score'],
-                        'optimal_factors': MatchingEngine._analyze_booking_factors(check_date, slot['start_time'])
-                    })
-        
-        # Sort suggestions by overall score
-        suggestions.sort(key=lambda x: (
-            x['recommendation_score'] * 0.4 + 
-            (100 - x['dynamic_rate']) * 0.3 +
-            sum(x['optimal_factors'].values()) * 0.3
-        ), reverse=True)
-        
-        return suggestions[:20]  # Return top 20 suggestions
-    
-    @staticmethod
-    def _analyze_booking_factors(date, time):
-        """Analyze factors that make a booking time optimal"""
-        factors = {
-            'off_peak': 0,
-            'weekday': 0,
-            'good_weather': 0,  # Would integrate with weather API
-            'low_demand': 0
-        }
-        
-        # Off-peak hours (before 5 PM or after 8 PM)
-        hour = int(time.split(':')[0])
-        if hour < 17 or hour >= 20:
-            factors['off_peak'] = 20
-        
-        # Weekday vs weekend
-        if date.weekday() < 5:  # Monday = 0, Sunday = 6
-            factors['weekday'] = 15
-        
-        # Simulate weather factor (would use real weather API)
-        factors['good_weather'] = random.randint(10, 30)
-        
-        # Simulate demand factor (would use real booking data)
-        factors['low_demand'] = random.randint(0, 25)
-        
-        return factors
-    
-    @staticmethod
-    def generate_match_insights(player_id):
-        """Generate insights and tips for better matching"""
-        player = Player.query.get(player_id)
-        if not player:
-            return {}
-        
-        stats = MatchingEngine.get_match_statistics(player_id)
-        insights = []
-        tips = []
-        
-        # Analyze compatibility rate
-        if stats['compatibility_rate'] < 30:
-            insights.append("Your match compatibility rate is below average")
-            tips.append("Consider updating your skill level or expanding your location preferences")
-        elif stats['compatibility_rate'] > 70:
-            insights.append("You have excellent compatibility with other players")
-            tips.append("You're in great shape for finding matches - keep being active!")
-        
-        # Analyze activity level
-        activity_level = stats['recent_activity']['activity_level']
-        if activity_level == 'Low':
-            insights.append("Your recent activity is low")
-            tips.append("Try booking more courts to increase your visibility to other players")
-        elif activity_level == 'High':
-            insights.append("You're very active - great job!")
-            tips.append("Your high activity makes you more attractive to potential playing partners")
-        
-        # Location-based insights
-        trending_locations = MatchingEngine.get_trending_locations()
-        player_location = player.preferred_location.lower()
-        
-        is_in_trending = any(loc['location'].lower() == player_location for loc in trending_locations[:3])
-        if not is_in_trending:
-            insights.append("Your preferred location has moderate activity")
-            tips.append(f"Consider trying courts in {trending_locations[0]['location']} - it's trending this week!")
-        
-        # Skill level insights
-        skill_distribution = db.session.query(
-            Player.skill_level,
-            func.count(Player.id).label('count')
-        ).group_by(Player.skill_level).all()
-        
-        player_skill_count = next((s.count for s in skill_distribution if s.skill_level == player.skill_level), 0)
-        total_players = sum(s.count for s in skill_distribution)
-        
-        if player_skill_count / total_players > 0.4:
-            insights.append(f"Your skill level ({player.skill_level}) is very common")
-            tips.append("With many players at your level, you should find matches easily")
-        elif player_skill_count / total_players < 0.1:
-            insights.append(f"Your skill level ({player.skill_level}) is rare")
-            tips.append("Consider being flexible with skill level matching to find more players")
-        
-        return {
-            'insights': insights,
-            'tips': tips,
-            'stats': stats,
-            'next_steps': [
-                "Update your profile with more details",
-                "Try booking during off-peak hours for better rates",
-                "Send messages to highly compatible players",
-                "Check out trending courts in popular locations"
-            ][:3]  # Limit to top 3 next steps
-        }

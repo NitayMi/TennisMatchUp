@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Respond to Booking Proposal - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <h1><i class="fas fa-reply me-2"></i>Respond to Booking Proposal</h1>
+        <p class="lead mb-0">{{ shared_booking.player1.user.full_name }} wants to play tennis with you!</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row">
+        <!-- Proposal Details -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Proposal Details</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Partner Info -->
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="fas fa-user-circle fa-3x text-tennis-green me-3"></i>
+                        <div>
+                            <h6 class="mb-0">{{ shared_booking.player1.user.full_name }}</h6>
+                            <small class="text-muted">
+                                {{ shared_booking.player1.skill_level|title }} • {{ shared_booking.player1.preferred_location }}
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Court Details -->
+                    <div class="mb-3">
+                        <h6><i class="fas fa-tennis-ball me-2"></i>{{ shared_booking.court.name }}</h6>
+                        <p class="mb-1">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ shared_booking.court.location }}<br>
+                            <i class="fas fa-money-bill-wave me-1"></i>₪{{ shared_booking.court.hourly_rate }}/hour
+                        </p>
+                    </div>
+                    
+                    <!-- Date & Time -->
+                    <div class="mb-3">
+                        <h6><i class="fas fa-calendar me-2"></i>Proposed Schedule</h6>
+                        <p class="mb-1">
+                            <strong>{{ shared_booking.booking_date.strftime('%A, %B %d, %Y') }}</strong><br>
+                            <i class="fas fa-clock me-1"></i>{{ shared_booking.start_time.strftime('%H:%M') }} - {{ shared_booking.end_time.strftime('%H:%M') }}
+                        </p>
+                    </div>
+                    
+                    <!-- Cost -->
+                    <div class="mb-3">
+                        <h6><i class="fas fa-calculator me-2"></i>Cost Breakdown</h6>
+                        <div class="bg-light p-2 rounded">
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>Total: ₪{{ shared_booking.total_cost }}</strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <strong>Your share: ₪{{ shared_booking.player2_share }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Message -->
+                    {% if shared_booking.initiator_notes %}
+                    <div class="mb-0">
+                        <h6><i class="fas fa-comment me-2"></i>Message from {{ shared_booking.player1.user.full_name }}</h6>
+                        <div class="bg-light p-3 rounded">
+                            <p class="mb-0">{{ shared_booking.initiator_notes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Response Form -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-reply me-2"></i>Your Response</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('shared_booking.submit_response') }}" id="response-form">
+                        <input type="hidden" name="shared_booking_id" value="{{ shared_booking.id }}">
+                        
+                        <!-- Response Options -->
+                        <div class="mb-4">
+                            <h6>Choose your response:</h6>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="action" id="accept" value="accept">
+                                <label class="form-check-label" for="accept">
+                                    <i class="fas fa-check text-success me-2"></i><strong>Accept</strong> - I agree to this proposal
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="action" id="counter_propose" value="counter_propose">
+                                <label class="form-check-label" for="counter_propose">
+                                    <i class="fas fa-exchange-alt text-warning me-2"></i><strong>Counter-propose</strong> - I'd like to suggest changes
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="action" id="decline" value="decline">
+                                <label class="form-check-label" for="decline">
+                                    <i class="fas fa-times text-danger me-2"></i><strong>Decline</strong> - I can't make it
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Counter-proposal Options (hidden by default) -->
+                        <div id="counter-proposal-options" style="display: none;">
+                            <h6>Suggest Changes:</h6>
+                            
+                            <!-- Alternative Court -->
+                            <div class="mb-3">
+                                <label class="form-label">Alternative Court (optional)</label>
+                                <select class="form-select" name="alternative_court_id">
+                                    <option value="">Keep same court ({{ shared_booking.court.name }})</option>
+                                    {% for court_suggestion in suggested_courts %}
+                                    <option value="{{ court_suggestion.court.id }}">
+                                        {{ court_suggestion.court.name }} - {{ court_suggestion.court.location }} 
+                                        (₪{{ court_suggestion.court.hourly_rate }}/hr)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Alternative Date/Time -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="alternative_date" class="form-label">Alternative Date</label>
+                                    <input type="date" class="form-control" name="alternative_date" 
+                                           min="{{ (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d') }}"
+                                           value="{{ shared_booking.booking_date.strftime('%Y-%m-%d') }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="alternative_start_time" class="form-label">Start</label>
+                                    <input type="time" class="form-control" name="alternative_start_time"
+                                           value="{{ shared_booking.start_time.strftime('%H:%M') }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="alternative_end_time" class="form-label">End</label>
+                                    <input type="time" class="form-control" name="alternative_end_time"
+                                           value="{{ shared_booking.end_time.strftime('%H:%M') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Message -->
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">Message to {{ shared_booking.player1.user.full_name }}</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3"
+                                      placeholder="Add a message..."></textarea>
+                        </div>
+                        
+                        <!-- Submit Buttons -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-tennis">
+                                <i class="fas fa-paper-plane me-2"></i>Send Response
+                            </button>
+                            <a href="{{ url_for('shared_booking.my_proposals') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Proposals
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Dynamic Form -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const radioButtons = document.querySelectorAll('input[name="action"]');
+    const counterProposalOptions = document.getElementById('counter-proposal-options');
+    
+    radioButtons.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            if (this.value === 'counter_propose') {
+                counterProposalOptions.style.display = 'block';
+            } else {
+                counterProposalOptions.style.display = 'none';
+            }
+        });
+    });
+    
+    // Form validation
+    document.getElementById('response-form').addEventListener('submit', function(e) {
+        const selectedAction = document.querySelector('input[name="action"]:checked');
+        if (!selectedAction) {
+            e.preventDefault();
+            alert('Please select a response option.');
+        }
+    });
+});
+</script>
+{% endblock %}

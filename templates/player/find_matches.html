@@ -161,17 +161,15 @@
                         {% endif %}
                         
                         <!-- Action Buttons -->
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-tennis btn-sm" 
-                                    data-action="suggest-match"
-                                    data-player-id="{{ match.player.id }}"
-                                    data-player-name="{{ match.user.full_name }}">
-                                <i class="fas fa-handshake me-2"></i>Suggest Match
-                            </button>
-                            
-                            <button class="btn btn-outline-tennis btn-sm"
+                        <div class="d-grid gap-2">                          
+                            <a href="{{ url_for('shared_booking.propose_booking', partner_player_id=match.player.id) }}" 
+                            class="btn btn-tennis btn-sm">
+                                <i class="fas fa-handshake me-2"></i>Suggest Joint Booking
+                            </a>
+
+                            <button class="btn btn-outline-tennis btn-sm" 
                                     data-action="send-message"
-                                    data-player-id="{{ match.user.id }}"
+                                    data-player-id="{{ match.player.id }}"
                                     data-player-name="{{ match.user.full_name }}">
                                 <i class="fas fa-envelope me-2"></i>Send Message
                             </button>

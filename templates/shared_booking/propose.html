@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Propose Joint Booking - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <h1><i class="fas fa-handshake me-2"></i>Propose Joint Booking</h1>
+        <p class="lead mb-0">Suggest a court and time to play with {{ partner_player.user.full_name }}</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row">
+        <!-- Partner Info -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Playing Partner</h5>
+                </div>
+                <div class="card-body">
+                    <h6>{{ partner_player.user.full_name }}</h6>
+                    <p class="text-muted mb-2">
+                        <i class="fas fa-trophy me-1"></i>{{ partner_player.get_skill_level_display() }}<br>
+                        <i class="fas fa-map-marker-alt me-1"></i>{{ partner_player.preferred_location }}<br>
+                        <i class="fas fa-clock me-1"></i>{{ partner_player.get_availability_display() }}
+                    </p>
+                    {% if partner_player.bio %}
+                    <p class="small text-muted">{{ partner_player.bio[:100] }}{% if partner_player.bio|length > 100 %}...{% endif %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Booking Form -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-plus me-2"></i>Booking Details</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('shared_booking.create_proposal') }}" id="booking-form">
+                        <input type="hidden" name="partner_player_id" value="{{ partner_player.id }}">
+                        
+                        <!-- Court Selection -->
+                        <div class="mb-4">
+                            <h6>Suggested Courts</h6>
+                            <div class="row">
+                                {% for court_suggestion in suggested_courts %}
+                                <div class="col-md-6 mb-3">
+                                    <div class="card court-option" data-court-id="{{ court_suggestion.court.id }}">
+                                        <div class="card-body">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="court_id" 
+                                                       id="court_{{ court_suggestion.court.id }}" 
+                                                       value="{{ court_suggestion.court.id }}" required>
+                                                <label class="form-check-label" for="court_{{ court_suggestion.court.id }}">
+                                                    <strong>{{ court_suggestion.court.name }}</strong>
+                                                </label>
+                                            </div>
+                                            <small class="text-muted">
+                                                <i class="fas fa-map-marker-alt"></i> {{ court_suggestion.court.location }}<br>
+                                                <i class="fas fa-money-bill-wave"></i> ₪{{ court_suggestion.court.hourly_rate }}/hour<br>
+                                                <i class="fas fa-route"></i> {{ "%.1f"|format(court_suggestion.average_distance) }} km average distance
+                                            </small>
+                                            
+                                            <div class="mt-2">
+                                                <small class="badge bg-info">Fair to both: {{ "%.0f"|format(court_suggestion.fairness_score) }}%</small>
+                                                {% if court_suggestion.distance_to_player1 %}
+                                                <br><small class="text-muted">
+                                                    You: {{ "%.1f"|format(court_suggestion.distance_to_player1) }}km • 
+                                                    {{ partner_player.user.full_name }}: {{ "%.1f"|format(court_suggestion.distance_to_player2) }}km
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-warning">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                        No suitable courts found between your locations. You can still search and select a court manually.
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <!-- Date and Time -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="booking_date" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="booking_date" name="booking_date" 
+                                       min="{{ (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d') }}" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="start_time" class="form-label">Start Time</label>
+                                <input type="time" class="form-control" id="start_time" name="start_time" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="end_time" class="form-label">End Time</label>
+                                <input type="time" class="form-control" id="end_time" name="end_time" required>
+                            </div>
+                        </div>
+                        
+                        <!-- Cost Preview -->
+                        <div id="cost-preview" class="alert alert-info" style="display: none;">
+                            <h6><i class="fas fa-calculator me-2"></i>Cost Breakdown</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Total Cost: <span id="total-cost">₪0</span></strong><br>
+                                    <small>Your share: <span id="your-share">₪0</span></small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small>{{ partner_player.user.full_name }}'s share: <span id="partner-share">₪0</span></small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Message -->
+                        <div class="mb-3">
+                            <label for="notes" class="form-label">Message to {{ partner_player.user.full_name }}</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Hi {{ partner_player.user.full_name }}! I'd love to play tennis with you. Are you available at this time?"></textarea>
+                        </div>
+                        
+                        <!-- Submit -->
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-tennis">
+                                <i class="fas fa-paper-plane me-2"></i>Send Proposal
+                            </button>
+                            <a href="{{ url_for('player.find_matches') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back to Matches
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const courtRadios = document.querySelectorAll('input[name="court_id"]');
+    const startTimeInput = document.getElementById('start_time');
+    const endTimeInput = document.getElementById('end_time');
+    const costPreview = document.getElementById('cost-preview');
+    
+    // Court selection styling
+    courtRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.court-option').forEach(card => {
+                card.classList.remove('border-success');
+            });
+            if (this.checked) {
+                this.closest('.court-option').classList.add('border-success');
+                calculateCost();
+            }
+        });
+    });
+    
+    // Time inputs
+    startTimeInput.addEventListener('change', calculateCost);
+    endTimeInput.addEventListener('change', calculateCost);
+    
+    function calculateCost() {
+        const selectedCourt = document.querySelector('input[name="court_id"]:checked');
+        const startTime = startTimeInput.value;
+        const endTime = endTimeInput.value;
+        
+        if (selectedCourt && startTime && endTime) {
+            // Get hourly rate from the selected court's data
+            const courtCard = selectedCourt.closest('.card-body');
+            const rateText = courtCard.querySelector('small').innerText;
+            const hourlyRate = parseFloat(rateText.match(/₪(\d+)/)[1]);
+            
+            // Calculate duration
+            const start = new Date(`1970-01-01T${startTime}:00`);
+            const end = new Date(`1970-01-01T${endTime}:00`);
+            const duration = (end - start) / (1000 * 60 * 60); // hours
+            
+            if (duration > 0) {
+                const totalCost = hourlyRate * duration;
+                const sharePerPlayer = totalCost / 2;
+                
+                document.getElementById('total-cost').textContent = `₪${totalCost.toFixed(2)}`;
+                document.getElementById('your-share').textContent = `₪${sharePerPlayer.toFixed(2)}`;
+                document.getElementById('partner-share').textContent = `₪${sharePerPlayer.toFixed(2)}`;
+                
+                costPreview.style.display = 'block';
+            } else {
+                costPreview.style.display = 'none';
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

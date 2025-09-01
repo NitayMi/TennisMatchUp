@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}My Joint Bookings - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <h1><i class="fas fa-handshake me-2"></i>Joint Bookings</h1>
+        <p class="lead mb-0">Manage your shared court bookings</p>
+    </div>
+</div>
+
+<div class="container py-4">
+    {% if pending_proposals %}
+    <!-- Proposals Requiring Response -->
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Proposals Awaiting Your Response ({{ pending_proposals|length }})</h5>
+        </div>
+        <div class="card-body">
+            {% for proposal in pending_proposals %}
+            <div class="border rounded p-3 mb-3">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <div class="text-center">
+                            <i class="fas fa-user-circle fa-3x text-tennis-green"></i>
+                            <br><strong>{{ proposal.player1.name }}</strong>
+                            <br><small class="text-muted">wants to play</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-tennis-ball me-2"></i>{{ proposal.court.name }}</h6>
+                        <p class="mb-1">
+                            <i class="fas fa-map-marker-alt me-1"></i>{{ proposal.court.location }}<br>
+                            <i class="fas fa-calendar me-1"></i>{{ proposal.booking_details.date }} 
+                            <i class="fas fa-clock me-1"></i>{{ proposal.booking_details.start_time }} - {{ proposal.booking_details.end_time }}
+                        </p>
+                        {% if proposal.messages.initiator_notes %}
+                        <p class="small text-muted mb-0">
+                            <i class="fas fa-comment me-1"></i>"{{ proposal.messages.initiator_notes }}"
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <div class="badge bg-info mb-2">₪{{ proposal.cost.player2_share }}/person</div>
+                        <br><small class="text-muted">Total: ₪{{ proposal.cost.total }}</small>
+                    </div>
+                    <div class="col-md-2 text-center">
+                        <a href="{{ url_for('shared_booking.respond_form', shared_booking_id=proposal.id) }}" 
+                           class="btn btn-tennis btn-sm mb-2">
+                            <i class="fas fa-reply me-1"></i>Respond
+                        </a>
+                        
+                        <!-- Quick Actions -->
+                        <div class="btn-group-vertical d-block">
+                            <form method="POST" action="{{ url_for('shared_booking.submit_response') }}" class="d-inline">
+                                <input type="hidden" name="shared_booking_id" value="{{ proposal.id }}">
+                                <input type="hidden" name="action" value="accept">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-check"></i> Accept
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <small class="text-muted">
+                            <i class="fas fa-hourglass-half me-1"></i>Expires: {{ proposal.timestamps.expires_at[:16] }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- All Proposals -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Joint Booking History</h5>
+        </div>
+        <div class="card-body">
+            {% if all_proposals %}
+            {% for proposal in all_proposals %}
+            <div class="border rounded p-3 mb-3 
+                    {% if proposal.status == 'confirmed' %}border-success
+                    {% elif proposal.status == 'cancelled' %}border-danger
+                    {% elif proposal.status == 'expired' %}border-secondary
+                    {% else %}border-info{% endif %}">
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="d-flex align-items-start">
+                            <!-- Status Badge -->
+                            <div class="me-3">
+                                {% if proposal.status == 'proposed' %}
+                                    <span class="badge bg-info">Waiting Response</span>
+                                {% elif proposal.status == 'counter_proposed' %}
+                                    <span class="badge bg-warning">Counter-Proposed</span>
+                                {% elif proposal.status == 'accepted' %}
+                                    <span class="badge bg-success">Accepted - Ready to Book</span>
+                                {% elif proposal.status == 'confirmed' %}
+                                    <span class="badge bg-success">Booked</span>
+                                {% elif proposal.status == 'cancelled' %}
+                                    <span class="badge bg-danger">Cancelled</span>
+                                {% elif proposal.status == 'expired' %}
+                                    <span class="badge bg-secondary">Expired</span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Booking Details -->
+                            <div>
+                                <h6 class="mb-1">
+                                    {% if proposal.user_role == 'initiator' %}
+                                        <i class="fas fa-paper-plane me-1"></i>You proposed to <strong>{{ proposal.other_player.user.full_name }}</strong>
+                                    {% else %}
+                                        <i class="fas fa-inbox me-1"></i><strong>{{ proposal.other_player.user.full_name }}</strong> proposed to you
+                                    {% endif %}
+                                </h6>
+                                <p class="mb-1">
+                                    <i class="fas fa-tennis-ball me-1"></i><strong>{{ proposal.court.name }}</strong>
+                                    <span class="text-muted">{{ proposal.court.location }}</span>
+                                </p>
+                                <p class="mb-1">
+                                    <i class="fas fa-calendar me-1"></i>{{ proposal.booking_details.date }} 
+                                    <i class="fas fa-clock me-1"></i>{{ proposal.booking_details.start_time }} - {{ proposal.booking_details.end_time }}
+                                    <span class="badge bg-light text-dark ms-2">₪{{ proposal.cost.player1_share }}/person</span>
+                                </p>
+                                
+                                <!-- Messages -->
+                                {% if proposal.messages.initiator_notes %}
+                                <p class="small text-muted mb-1">
+                                    <i class="fas fa-comment me-1"></i>
+                                    {% if proposal.user_role == 'initiator' %}Your message:{% else %}Their message:{% endif %}
+                                    "{{ proposal.messages.initiator_notes }}"
+                                </p>
+                                {% endif %}
+                                
+                                {% if proposal.messages.partner_notes %}
+                                <p class="small text-muted mb-0">
+                                    <i class="fas fa-reply me-1"></i>
+                                    {% if proposal.user_role == 'partner' %}Your response:{% else %}Their response:{% endif %}
+                                    "{{ proposal.messages.partner_notes }}"
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-2 text-center">
+                        <small class="text-muted">{{ proposal.timestamps.proposed_at[:10] }}</small>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="col-md-2 text-end">
+                        {% if proposal.status == 'accepted' and proposal.user_role == 'initiator' %}
+                            <form method="POST" action="{{ url_for('shared_booking.finalize_booking', shared_booking_id=proposal.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-success btn-sm">
+                                    <i class="fas fa-check-double me-1"></i>Book Now!
+                                </button>
+                            </form>
+                        {% elif proposal.status == 'counter_proposed' and proposal.user_role == 'initiator' %}
+                            <a href="{{ url_for('shared_booking.respond_form', shared_booking_id=proposal.id) }}" 
+                               class="btn btn-warning btn-sm">
+                                <i class="fas fa-reply me-1"></i>Review
+                            </a>
+                        {% elif proposal.status in ['proposed', 'counter_proposed'] %}
+                            <form method="POST" action="{{ url_for('shared_booking.cancel_proposal', shared_booking_id=proposal.id) }}" 
+                                  class="d-inline" onsubmit="return confirm('Cancel this proposal?')">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">
+                                    <i class="fas fa-times me-1"></i>Cancel
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-handshake fa-3x text-muted mb-3"></i>
+                <h5>No joint bookings yet</h5>
+                <p class="text-muted">When you find a playing partner, you can propose shared court bookings here.</p>
+                <a href="{{ url_for('player.find_matches') }}" class="btn btn-tennis">
+                    <i class="fas fa-search me-2"></i>Find Playing Partners
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

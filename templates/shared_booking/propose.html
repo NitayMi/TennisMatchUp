@@ -21,9 +21,9 @@
                 <div class="card-body">
                     <h6>{{ partner_player.user.full_name }}</h6>
                     <p class="text-muted mb-2">
-                        <i class="fas fa-trophy me-1"></i>{{ partner_player.get_skill_level_display() }}<br>
+                        <i class="fas fa-trophy me-1"></i>{{ partner_player.skill_level|title }}<br>
                         <i class="fas fa-map-marker-alt me-1"></i>{{ partner_player.preferred_location }}<br>
-                        <i class="fas fa-clock me-1"></i>{{ partner_player.get_availability_display() }}
+                        <i class="fas fa-clock me-1"></i>{{ partner_player.availability|title }}
                     </p>
                     {% if partner_player.bio %}
                     <p class="small text-muted">{{ partner_player.bio[:100] }}{% if partner_player.bio|length > 100 %}...{% endif %}</p>
@@ -61,18 +61,32 @@
                                             <small class="text-muted">
                                                 <i class="fas fa-map-marker-alt"></i> {{ court_suggestion.court.location }}<br>
                                                 <i class="fas fa-money-bill-wave"></i> ₪{{ court_suggestion.court.hourly_rate }}/hour<br>
+                                                {% if court_suggestion.get('average_distance') %}
                                                 <i class="fas fa-route"></i> {{ "%.1f"|format(court_suggestion.average_distance) }} km average distance
+                                                {% elif court_suggestion.get('score') %}
+                                                <i class="fas fa-star"></i> Score: {{ "%.0f"|format(court_suggestion.score) }}
+                                                {% else %}
+                                                <i class="fas fa-route"></i> Good location option
+                                                {% endif %}
                                             </small>
                                             
+                                            {% if court_suggestion.get('fairness_score') %}
                                             <div class="mt-2">
                                                 <small class="badge bg-info">Fair to both: {{ "%.0f"|format(court_suggestion.fairness_score) }}%</small>
-                                                {% if court_suggestion.distance_to_player1 %}
+                                                {% if court_suggestion.get('distance_to_player1') %}
                                                 <br><small class="text-muted">
                                                     You: {{ "%.1f"|format(court_suggestion.distance_to_player1) }}km • 
                                                     {{ partner_player.user.full_name }}: {{ "%.1f"|format(court_suggestion.distance_to_player2) }}km
                                                 </small>
                                                 {% endif %}
                                             </div>
+                                            {% endif %}
+                                            
+                                            {% if court_suggestion.get('recommendation_reason') %}
+                                            <div class="mt-2">
+                                                <small class="text-success">{{ court_suggestion.recommendation_reason }}</small>
+                                            </div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>

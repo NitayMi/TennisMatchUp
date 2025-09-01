@@ -31,11 +31,12 @@ class SharedBookingService:
             return []
         
         # Use MatchingEngine's court suggestion algorithm
-        court_suggestions = MatchingEngine.suggest_meeting_points(
-            p1_coords, p2_coords, max_courts
+        court_suggestions = MatchingEngine.recommend_courts_for_pair(
+            player1_id, player2_id, max_courts
         )
         
         return court_suggestions
+    
     
     @staticmethod
     def create_booking_proposal(player1_id, player2_id, court_id, booking_date, 

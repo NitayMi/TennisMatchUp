@@ -7,8 +7,11 @@ from models.database import db
 from utils.decorators import login_required, player_required
 from services.shared_booking_service import SharedBookingService
 from datetime import datetime, date
+from datetime import datetime, date, timedelta  # הוסף את timedelta
 
 shared_booking_bp = Blueprint('shared_booking', __name__, url_prefix='/shared-booking')
+
+# routes/shared_booking.py - תיקון הנתיב propose_booking
 
 @shared_booking_bp.route('/propose/<int:partner_player_id>')
 @login_required
@@ -28,10 +31,15 @@ def propose_booking(partner_player_id):
         current_player.id, partner_player.id
     )
     
+    # **תיקון: הוסף datetime ו-timedelta לתבנית**
     return render_template('shared_booking/propose.html',
                          current_player=current_player,
                          partner_player=partner_player,
-                         suggested_courts=suggested_courts)
+                         suggested_courts=suggested_courts,
+                         datetime=datetime,  # הוסף את זה
+                         timedelta=timedelta)  # והוסף את זה
+
+
 
 @shared_booking_bp.route('/create-proposal', methods=['POST'])
 @login_required

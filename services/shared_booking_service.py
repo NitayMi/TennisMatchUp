@@ -36,11 +36,10 @@ class SharedBookingService:
         )
         
         return court_suggestions
-    
-    
+
     @staticmethod
     def create_booking_proposal(player1_id, player2_id, court_id, booking_date, 
-                               start_time, end_time, notes=None):
+                            start_time, end_time, notes=None):
         """Player1 proposes a joint booking to Player2"""
         
         # Validate inputs
@@ -63,6 +62,25 @@ class SharedBookingService:
         if existing:
             return {'success': False, 'error': 'There is already a pending proposal between you'}
         
+        # Convert string parameters to proper objects
+        if isinstance(booking_date, str):
+            try:
+                booking_date = datetime.strptime(booking_date, '%Y-%m-%d').date()
+            except:
+                return {'success': False, 'error': 'Invalid date format'}
+                
+        if isinstance(start_time, str):
+            try:
+                start_time = datetime.strptime(start_time, '%H:%M').time()
+            except:
+                return {'success': False, 'error': 'Invalid start time format'}
+                
+        if isinstance(end_time, str):
+            try:
+                end_time = datetime.strptime(end_time, '%H:%M').time()
+            except:
+                return {'success': False, 'error': 'Invalid end time format'}
+        
         # Create shared booking proposal
         shared_booking = SharedBooking(
             player1_id=player1_id,
@@ -76,6 +94,8 @@ class SharedBookingService:
         
         try:
             db.session.add(shared_booking)
+            db.session.flush()  # Get ID and load relationships without committing
+            shared_booking.calculate_cost()  # Calculate cost after relationships are loaded
             db.session.commit()
             
             return {
@@ -87,7 +107,8 @@ class SharedBookingService:
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'error': 'Failed to create proposal'}
-    
+
+
     @staticmethod
     def respond_to_proposal(shared_booking_id, responding_player_id, action, 
                            notes=None, alternative_court_id=None, alternative_date=None,

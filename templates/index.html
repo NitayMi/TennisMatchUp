@@ -275,26 +275,7 @@
 </section>
 {% endblock %}
 
-{% block extra_scripts %}
-<style>
-@keyframes bounce {
-    0%, 20%, 50%, 80%, 100% {
-        transform: translateY(0);
-    }
-    40% {
-        transform: translateY(-10px);
-    }
-    60% {
-        transform: translateY(-5px);
-    }
-}
-
-.hero-illustration {
-    position: relative;
-    height: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-</style>
+<!-- החלף את הבלוק extra_scripts עם זה: -->
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock %}

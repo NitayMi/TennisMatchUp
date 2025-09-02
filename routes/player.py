@@ -99,29 +99,23 @@ def find_matches():
 
 # עדכן גם את הנתיב book_court הקיים:
 
-
 @player_bp.route('/book-court')
 @login_required
 @player_required
 def book_court():
-    """Browse and book available courts with proper MVC separation"""
+    """Browse and book available courts"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    if not player:
-        flash('Please complete your player profile first.', 'error')
-        return redirect(url_for('player.dashboard'))
-    
-    # Get search filters from request
-    location = request.args.get('location', '').strip()
-    date_filter = request.args.get('date', '').strip()
-    court_type = request.args.get('court_type', '').strip()
+    # Get search filters
+    location = request.args.get('location', '')
+    date = request.args.get('date', '')
+    court_type = request.args.get('court_type', '')
     max_price = request.args.get('max_price', type=float)
     
-    # Build query for available courts using business logic
+    # Build query for available courts
     courts_query = Court.query.filter_by(is_active=True)
     
-    # Apply filters through rule engine validation
     if location:
         courts_query = courts_query.filter(Court.location.ilike(f'%{location}%'))
     if court_type:
@@ -129,27 +123,62 @@ def book_court():
     if max_price:
         courts_query = courts_query.filter(Court.hourly_rate <= max_price)
     
-    available_courts = courts_query.order_by(Court.hourly_rate.asc()).all()
+    available_courts = courts_query.all()
     
-    # Apply business rules for court availability
-    if date_filter:
+    # Check availability for specific date if provided
+    if date:
         for court in available_courts:
-            # Check availability through RuleEngine
-            availability_check = RuleEngine.check_court_availability(
-                court.id, date_filter
-            )
-            court.is_available_on_date = availability_check.get('available', False)
-            court.available_slots_count = availability_check.get('available_slots', 0)
+            # Get available time slots for this court on this date
+            court.available_slots = get_available_slots(court.id, date)
     
     return render_template('player/book_court.html',
-                         player=player,
                          available_courts=available_courts,
                          filters={
                              'location': location,
-                             'date': date_filter,
+                             'date': date,
                              'court_type': court_type,
                              'max_price': max_price
-                         })
+                         },
+                         datetime=datetime,
+                         player=player)
+
+
+def get_available_slots(court_id, date_str):
+    """Get available time slots for a court on a specific date"""
+    from datetime import datetime, time, timedelta
+    
+    try:
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except:
+        return []
+    
+    # Get existing bookings for this court on this date
+    existing_bookings = Booking.query.filter(
+        Booking.court_id == court_id,
+        Booking.booking_date == target_date,
+        Booking.status.in_(['confirmed', 'pending'])
+    ).all()
+    
+    # Generate potential time slots (8 AM to 10 PM, 1-hour slots)
+    available_slots = []
+    for hour in range(8, 22):  # 8 AM to 9 PM (last slot starts at 9 PM)
+        slot_start = time(hour, 0)
+        slot_end = time(hour + 1, 0)
+        
+        # Check if this slot conflicts with existing bookings
+        has_conflict = False
+        for booking in existing_bookings:
+            if (slot_start < booking.end_time and slot_end > booking.start_time):
+                has_conflict = True
+                break
+        
+        if not has_conflict:
+            available_slots.append({
+                'start_time': slot_start.strftime('%H:%M'),
+                'end_time': slot_end.strftime('%H:%M')
+            })
+    
+    return available_slots
 
 @player_bp.route('/book-court/<int:court_id>', methods=['POST'])
 @login_required
@@ -459,7 +488,7 @@ def settings():
 
 # הוסף את הנתיב הזה בקובץ routes/player.py
 
-@player_bp.route('/book-court-submit', methods=['POST'])
+@player_bp.route('/submit-booking', methods=['POST'])
 @login_required
 @player_required
 def submit_booking():

@@ -1,0 +1,35 @@
+/* Hero Section Animations */
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-10px); }
+    60% { transform: translateY(-5px); }
+}
+
+.hero-illustration {
+    position: relative;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-users-icon {
+    font-size: 8rem;
+    opacity: 0.3;
+}
+
+.hero-ball-icon {
+    position: absolute;
+    font-size: 2rem;
+    color: var(--tennis-yellow);
+    animation: bounce 2s infinite;
+    top: 20%;
+    right: 30%;
+}
+
+.step-number {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    font-weight: bold;
+}

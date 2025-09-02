@@ -1,5 +1,4 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
-from datetime import datetime
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
@@ -8,6 +7,7 @@ from models.database import db
 from utils.decorators import login_required, player_required
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
+from datetime import datetime, date, time, timedelta
 
 player_bp = Blueprint('player', __name__, url_prefix='/player')
 
@@ -97,23 +97,31 @@ def find_matches():
                              location=location,
                              availability=availability)
 
+# עדכן גם את הנתיב book_court הקיים:
+
+
 @player_bp.route('/book-court')
 @login_required
 @player_required
 def book_court():
-    """Browse and book available courts"""
+    """Browse and book available courts with proper MVC separation"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get search filters
-    location = request.args.get('location', player.preferred_location)
-    date = request.args.get('date')
-    court_type = request.args.get('court_type')
+    if not player:
+        flash('Please complete your player profile first.', 'error')
+        return redirect(url_for('player.dashboard'))
+    
+    # Get search filters from request
+    location = request.args.get('location', '').strip()
+    date_filter = request.args.get('date', '').strip()
+    court_type = request.args.get('court_type', '').strip()
     max_price = request.args.get('max_price', type=float)
     
-    # Build query for available courts
+    # Build query for available courts using business logic
     courts_query = Court.query.filter_by(is_active=True)
     
+    # Apply filters through rule engine validation
     if location:
         courts_query = courts_query.filter(Court.location.ilike(f'%{location}%'))
     if court_type:
@@ -121,18 +129,24 @@ def book_court():
     if max_price:
         courts_query = courts_query.filter(Court.hourly_rate <= max_price)
     
-    available_courts = courts_query.all()
+    available_courts = courts_query.order_by(Court.hourly_rate.asc()).all()
     
-    # Check availability for each court if date provided
-    if date:
+    # Apply business rules for court availability
+    if date_filter:
         for court in available_courts:
-            court.available_slots = court.get_available_slots(date)
+            # Check availability through RuleEngine
+            availability_check = RuleEngine.check_court_availability(
+                court.id, date_filter
+            )
+            court.is_available_on_date = availability_check.get('available', False)
+            court.available_slots_count = availability_check.get('available_slots', 0)
     
     return render_template('player/book_court.html',
+                         player=player,
                          available_courts=available_courts,
                          filters={
                              'location': location,
-                             'date': date,
+                             'date': date_filter,
                              'court_type': court_type,
                              'max_price': max_price
                          })
@@ -442,3 +456,81 @@ def settings():
     player = Player.query.filter_by(user_id=user_id).first()
     
     return render_template('player/settings.html', user=user, player=player)
+
+# הוסף את הנתיב הזה בקובץ routes/player.py
+
+@player_bp.route('/book-court-submit', methods=['POST'])
+@login_required
+@player_required
+def submit_booking():
+    """Submit booking request with JSON response"""
+    try:
+        user_id = session['user_id']
+        player = Player.query.filter_by(user_id=user_id).first()
+        
+        # Get form data
+        court_id = request.form.get('court_id', type=int)
+        booking_date = request.form.get('booking_date')
+        start_time = request.form.get('start_time')
+        end_time = request.form.get('end_time')
+        notes = request.form.get('notes', '').strip()
+        
+        # Validate required fields
+        if not all([court_id, booking_date, start_time, end_time]):
+            return jsonify({'success': False, 'error': 'All fields are required'})
+        
+        # Validate court exists
+        court = Court.query.get(court_id)
+        if not court or not court.is_active:
+            return jsonify({'success': False, 'error': 'Court not found or unavailable'})
+        
+        # Validate booking using rule engine
+        validation_result = RuleEngine.validate_booking(
+            court_id=court_id,
+            player_id=player.id,
+            booking_date=booking_date,
+            start_time=start_time,
+            end_time=end_time
+        )
+        
+        if not validation_result['valid']:
+            return jsonify({'success': False, 'error': validation_result['reason']})
+        
+        # Calculate duration and cost
+        from datetime import datetime, timedelta
+        start_dt = datetime.strptime(start_time, '%H:%M')
+        end_dt = datetime.strptime(end_time, '%H:%M')
+        duration_hours = (end_dt - start_dt).total_seconds() / 3600
+        total_cost = duration_hours * court.hourly_rate
+        
+        # Create booking
+        booking = Booking(
+            court_id=court_id,
+            player_id=player.id,
+            booking_date=datetime.strptime(booking_date, '%Y-%m-%d').date(),
+            start_time=datetime.strptime(start_time, '%H:%M').time(),
+            end_time=datetime.strptime(end_time, '%H:%M').time(),
+            status='pending',
+            notes=notes,
+            total_cost=total_cost
+        )
+        
+        db.session.add(booking)
+        db.session.commit()
+        
+        # Optional: Send notification to court owner
+        from services.cloud_service import CloudService
+        try:
+            CloudService.send_booking_approval_notification(booking)
+        except:
+            pass  # Continue even if email fails
+        
+        return jsonify({
+            'success': True, 
+            'booking_id': booking.id,
+            'message': 'Booking request submitted successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'An error occurred while processing your request'})

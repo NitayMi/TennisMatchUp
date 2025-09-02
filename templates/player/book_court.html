@@ -1,23 +1,226 @@
-<!-- templates/player/book_court.html -->
 {% extends "base.html" %}
+
 {% block title %}Book Court - TennisMatchUp{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/book_court.css') }}">
+{% endblock %}
+
 {% block content %}
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <h1><i class="fas fa-calendar-plus me-2"></i>Book a Court</h1>
+        <p class="lead mb-0">Find and reserve the perfect tennis court for your game</p>
+    </div>
+</div>
+
 <div class="container py-4">
-    <h1><i class="fas fa-calendar-plus me-2"></i>Book a Court</h1>
-    <p class="text-muted">Find and book tennis courts in your area</p>
-    
-    <div class="alert alert-info">
-        <h5>Coming Soon!</h5>
-        <p class="mb-0">Court booking feature is in development.</p>
-        <p class="mb-0">You can view available courts below:</p>
-        {% for court in available_courts %}
-            <div class="mt-3 p-3 border rounded">
-                <h6>{{ court.name }}</h6>
-                <p class="mb-1">{{ court.location }} - ${{ court.hourly_rate }}/hour</p>
-                <small class="text-muted">{{ court.description or 'No description available' }}</small>
+    <!-- Search & Filter Section -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filter Courts</h5>
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('player.book_court') }}" id="filterForm">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="location" class="form-label">Location</label>
+                        <select class="form-select" name="location" id="location">
+                            <option value="">All Locations</option>
+                            <option value="Tel Aviv" {{ 'selected' if filters.location == 'Tel Aviv' else '' }}>Tel Aviv</option>
+                            <option value="Haifa" {{ 'selected' if filters.location == 'Haifa' else '' }}>Haifa</option>
+                            <option value="Jerusalem" {{ 'selected' if filters.location == 'Jerusalem' else '' }}>Jerusalem</option>
+                            <option value="Herzliya" {{ 'selected' if filters.location == 'Herzliya' else '' }}>Herzliya</option>
+                            <option value="Ramat Gan" {{ 'selected' if filters.location == 'Ramat Gan' else '' }}>Ramat Gan</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="date" class="form-label">Date</label>
+                        <input type="date" class="form-control" name="date" id="date" 
+                               value="{{ filters.date or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="court_type" class="form-label">Court Type</label>
+                        <select class="form-select" name="court_type" id="court_type">
+                            <option value="">Any Type</option>
+                            <option value="outdoor" {{ 'selected' if filters.court_type == 'outdoor' else '' }}>Outdoor</option>
+                            <option value="indoor" {{ 'selected' if filters.court_type == 'indoor' else '' }}>Indoor</option>
+                            <option value="covered" {{ 'selected' if filters.court_type == 'covered' else '' }}>Covered</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="max_price" class="form-label">Max Price (₪/hour)</label>
+                        <input type="number" class="form-control" name="max_price" id="max_price" 
+                               value="{{ filters.max_price or '' }}" placeholder="Any price">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-tennis me-2">
+                            <i class="fas fa-search me-1"></i>Search Courts
+                        </button>
+                        <a href="{{ url_for('player.book_court') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Clear Filters
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Available Courts -->
+    <div class="row">
+        <div class="col-12">
+            {% if available_courts %}
+            <h4 class="mb-4">
+                <i class="fas fa-tennis-ball me-2 text-tennis-green"></i>
+                Available Courts ({{ available_courts|length }})
+            </h4>
+            
+            <div class="row">
+                {% for court in available_courts %}
+                <div class="col-lg-6 mb-4">
+                    <div class="card court-card h-100">
+                        {% if court.image_urls and court.image_urls|length > 0 %}
+                        <img src="{{ court.image_urls[0] }}" class="card-img-top court-image" alt="{{ court.name }}">
+                        {% else %}
+                        <div class="card-img-top court-placeholder">
+                            <i class="fas fa-tennis-ball fa-3x text-muted"></i>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="card-title mb-0">{{ court.name }}</h5>
+                                <span class="badge bg-success price-badge">₪{{ court.hourly_rate }}/hr</span>
+                            </div>
+                            
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-map-marker-alt me-1"></i>{{ court.location }}
+                            </p>
+                            
+                            {% if court.description %}
+                            <p class="card-text small">{{ court.description[:100] }}{% if court.description|length > 100 %}...{% endif %}</p>
+                            {% endif %}
+                            
+                            <!-- Amenities -->
+                            <div class="mb-3">
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% if court.has_lighting %}
+                                    <small class="text-success amenity-item">
+                                        <i class="fas fa-lightbulb amenity-icon"></i>Lighting
+                                    </small>
+                                    {% endif %}
+                                    {% if court.has_parking %}
+                                    <small class="text-success amenity-item">
+                                        <i class="fas fa-parking amenity-icon"></i>Parking
+                                    </small>
+                                    {% endif %}
+                                    {% if court.has_equipment_rental %}
+                                    <small class="text-success amenity-item">
+                                        <i class="fas fa-tennis-ball amenity-icon"></i>Equipment
+                                    </small>
+                                    {% endif %}
+                                    {% if court.has_changing_rooms %}
+                                    <small class="text-success amenity-item">
+                                        <i class="fas fa-tshirt amenity-icon"></i>Changing Rooms
+                                    </small>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-layer-group me-1"></i>{{ court.surface|title }}
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Book Button -->
+                            <button type="button" class="btn btn-tennis w-100 book-court-btn" 
+                                    data-court-id="{{ court.id }}" 
+                                    data-court-name="{{ court.name }}" 
+                                    data-hourly-rate="{{ court.hourly_rate }}">
+                                <i class="fas fa-calendar-check me-2"></i>Book This Court
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
-        {% endfor %}
+            {% else %}
+            <!-- No courts found -->
+            <div class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h4>No courts found</h4>
+                <p class="text-muted">Try adjusting your search filters or <a href="{{ url_for('player.book_court') }}">view all courts</a></p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Booking Modal -->
+<div class="modal fade" id="bookingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-plus me-2"></i>Book Court: <span id="modalCourtName"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bookingForm">
+                <div class="modal-body">
+                    <input type="hidden" id="modalCourtId" name="court_id">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="booking_date" class="form-label">Date *</label>
+                            <input type="date" class="form-control" id="booking_date" name="booking_date" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="start_time" class="form-label">Start Time *</label>
+                            <select class="form-select" id="start_time" name="start_time" required>
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="end_time" class="form-label">End Time *</label>
+                            <select class="form-select" id="end_time" name="end_time" required>
+                                <option value="">Select...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Cost Display -->
+                    <div class="alert alert-info cost-info" id="costInfo" style="display: none;">
+                        <h6><i class="fas fa-calculator me-2"></i>Booking Summary</h6>
+                        <div class="cost-details">
+                            <div><strong>Duration:</strong> <span id="duration">-</span></div>
+                            <div><strong>Total Cost:</strong> <span id="totalCost">-</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes (Optional)</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                placeholder="Any special requests or notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-tennis" id="submitBookingBtn">
+                        <span class="submit-text">
+                            <i class="fas fa-check me-2"></i>Submit Booking Request
+                        </span>
+                        <span class="loading-text" style="display: none;">
+                            <i class="fas fa-spinner fa-spin me-2"></i>Processing...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/book_court.js') }}"></script>
+{% endblock %}

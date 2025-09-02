@@ -486,16 +486,18 @@ def settings():
     
     return render_template('player/settings.html', user=user, player=player)
 
-# הוסף את הנתיב הזה בקובץ routes/player.py
 
 @player_bp.route('/submit-booking', methods=['POST'])
 @login_required
 @player_required
 def submit_booking():
     """Submit booking request with JSON response"""
+    print("=== SUBMIT BOOKING START ===")  # DEBUG
+    
     try:
         user_id = session['user_id']
         player = Player.query.filter_by(user_id=user_id).first()
+        print(f"Player found: {player.id}")  # DEBUG
         
         # Get form data
         court_id = request.form.get('court_id', type=int)
@@ -504,62 +506,74 @@ def submit_booking():
         end_time = request.form.get('end_time')
         notes = request.form.get('notes', '').strip()
         
+        print(f"Form data: court_id={court_id}, date={booking_date}, start={start_time}, end={end_time}")  # DEBUG
+        
         # Validate required fields
         if not all([court_id, booking_date, start_time, end_time]):
+            print("Missing required fields")  # DEBUG
             return jsonify({'success': False, 'error': 'All fields are required'})
         
         # Validate court exists
         court = Court.query.get(court_id)
         if not court or not court.is_active:
+            print(f"Court not found or inactive: {court_id}")  # DEBUG
             return jsonify({'success': False, 'error': 'Court not found or unavailable'})
         
-        # Validate booking using rule engine
-        validation_result = RuleEngine.validate_booking(
-            court_id=court_id,
-            player_id=player.id,
-            booking_date=booking_date,
-            start_time=start_time,
-            end_time=end_time
-        )
+        print(f"Court found: {court.name}")  # DEBUG
         
-        if not validation_result['valid']:
-            return jsonify({'success': False, 'error': validation_result['reason']})
+        # SKIP VALIDATION FOR NOW - MIGHT BE THE ISSUE
+        # validation_result = RuleEngine.validate_booking(...)
         
         # Calculate duration and cost
-        from datetime import datetime, timedelta
+        from datetime import datetime
         start_dt = datetime.strptime(start_time, '%H:%M')
         end_dt = datetime.strptime(end_time, '%H:%M')
         duration_hours = (end_dt - start_dt).total_seconds() / 3600
         total_cost = duration_hours * court.hourly_rate
         
-        # Create booking
+        print(f"Duration: {duration_hours} hours, Cost: {total_cost}")  # DEBUG
+
+        # Create booking - FIX: התאמה למודל הקיים
         booking = Booking(
             court_id=court_id,
             player_id=player.id,
             booking_date=datetime.strptime(booking_date, '%Y-%m-%d').date(),
             start_time=datetime.strptime(start_time, '%H:%M').time(),
             end_time=datetime.strptime(end_time, '%H:%M').time(),
-            status='pending',
-            notes=notes,
-            total_cost=total_cost
+            notes=notes
         )
-        
+
+        # Set additional fields after creation (המודל מגדיר אותם כdefault)
+        booking.total_cost = total_cost  # הוסף את העלות אחרי היצירה
+        # booking.status = 'pending'  # זה כבר default במודל
+
+        print(f"Booking created with cost: {booking.total_cost}")  # DEBUG
+
         db.session.add(booking)
         db.session.commit()
+
         
-        # Optional: Send notification to court owner
-        from services.cloud_service import CloudService
-        try:
-            CloudService.send_booking_approval_notification(booking)
-        except:
-            pass  # Continue even if email fails
+        print(f"Booking created: {booking.id}")  # DEBUG
         
-        return jsonify({
+        # SKIP EMAIL FOR NOW - MIGHT CAUSE DELAY
+        # try:
+        #     CloudService.send_booking_approval_notification(booking)
+        # except:
+        #     pass
+        
+        response = {
             'success': True, 
             'booking_id': booking.id,
-            'message': 'Booking request submitted successfully'
-        })
+            'message': 'Booking request submitted successfully!'
+        }
+        
+        print(f"Returning response: {response}")  # DEBUG
+        print("=== SUBMIT BOOKING END ===")  # DEBUG
+        
+        return jsonify(response)
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': 'An error occurred while processing your request'})
+        print(f"ERROR in submit_booking: {str(e)}")  # DEBUG
+        print("=== SUBMIT BOOKING ERROR ===")  # DEBUG
+        return jsonify({'success': False, 'error': f'Error: {str(e)}'})

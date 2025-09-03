@@ -8,6 +8,7 @@ from utils.decorators import login_required, player_required
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
 from datetime import datetime, date, time, timedelta
+import json
 
 player_bp = Blueprint('player', __name__, url_prefix='/player')
 
@@ -241,13 +242,36 @@ def my_calendar():
     booking_groups = {
         'confirmed': [b for b in bookings if b.status == 'confirmed'],
         'pending': [b for b in bookings if b.status == 'pending'],
-        'cancelled': [b for b in bookings if b.status == 'cancelled']
+        'cancelled': [b for b in bookings if b.status == 'cancelled'],
+        'rejected': [b for b in bookings if b.status == 'rejected']
     }
+    
+    # Prepare bookings data for JavaScript (JSON format)
+    bookings_json = []
+    for booking in bookings:
+        booking_data = {
+            'id': booking.id,
+            'booking_date': booking.booking_date.strftime('%Y-%m-%d'),
+            'start_time': booking.start_time.strftime('%H:%M'),
+            'end_time': booking.end_time.strftime('%H:%M'),
+            'status': booking.status,
+            'notes': booking.notes or '',
+            'total_cost': float(booking.total_cost) if booking.total_cost else 0,
+            'court': {
+                'id': booking.court.id,
+                'name': booking.court.name,
+                'location': booking.court.location
+            }
+        }
+        bookings_json.append(booking_data)
+    
+    import json
     
     return render_template('player/my_calendar.html',
                          player=player,
                          bookings=bookings,
-                         booking_groups=booking_groups)
+                         booking_groups=booking_groups,
+                         bookings_json=json.dumps(bookings_json))
 
 @player_bp.route('/messages')
 @login_required

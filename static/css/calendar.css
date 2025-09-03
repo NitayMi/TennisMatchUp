@@ -1,0 +1,257 @@
+/* Calendar Styles for TennisMatchUp */
+
+.calendar-card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: none;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.calendar-container {
+    background: white;
+}
+
+.weekday-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.weekday-cell {
+    padding: 15px 10px;
+    text-align: center;
+    font-weight: 600;
+    color: #495057;
+    border-right: 1px solid #e9ecef;
+    background: #f8f9fa;
+}
+
+.weekday-cell:last-child {
+    border-right: none;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    min-height: 420px;
+}
+
+.calendar-day {
+    min-height: 70px;
+    padding: 8px;
+    border-right: 1px solid #e9ecef;
+    border-bottom: 1px solid #e9ecef;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-day:hover {
+    background-color: #f8f9fa;
+}
+
+.calendar-day:last-child {
+    border-right: none;
+}
+
+.calendar-day.today {
+    background-color: #e3f2fd;
+    border: 2px solid #2196f3;
+    font-weight: bold;
+}
+
+.calendar-day.other-month {
+    color: #ccc;
+    background-color: #fafafa;
+}
+
+.calendar-day.has-bookings {
+    background-color: #fff3e0;
+}
+
+.calendar-day.has-bookings.today {
+    background-color: #e8f5e8;
+}
+
+.day-number {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+.day-bookings {
+    flex-grow: 1;
+    overflow: hidden;
+}
+
+.booking-dot {
+    display: block;
+    width: 100%;
+    height: 18px;
+    border-radius: 3px;
+    margin-bottom: 2px;
+    font-size: 10px;
+    line-height: 18px;
+    padding: 0 4px;
+    color: white;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.booking-dot.pending {
+    background-color: #ffc107;
+}
+
+.booking-dot.confirmed {
+    background-color: #28a745;
+}
+
+.booking-dot.cancelled {
+    background-color: #dc3545;
+}
+
+.booking-dot.rejected {
+    background-color: #6c757d;
+}
+
+.booking-count {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: #28a745;
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+/* Sidebar Styles */
+.booking-item {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.booking-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-item {
+    padding: 10px;
+}
+
+.stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 4px;
+}
+
+/* Navigation */
+.btn-group .btn {
+    border-radius: 0;
+}
+
+.btn-group .btn:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+}
+
+.btn-group .btn:last-child {
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
+}
+
+/* Modal Enhancements */
+.modal-body .booking-detail {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+.modal-body .booking-detail strong {
+    color: #495057;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .calendar-day {
+        min-height: 50px;
+        padding: 4px;
+    }
+    
+    .day-number {
+        font-size: 12px;
+    }
+    
+    .booking-dot {
+        height: 14px;
+        line-height: 14px;
+        font-size: 8px;
+    }
+    
+    .booking-count {
+        width: 14px;
+        height: 14px;
+        font-size: 8px;
+    }
+    
+    .weekday-cell {
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .calendar-grid {
+        min-height: 350px;
+    }
+    
+    .calendar-day {
+        min-height: 40px;
+        padding: 2px;
+    }
+    
+    .day-number {
+        font-size: 11px;
+    }
+    
+    .booking-dot {
+        height: 12px;
+        line-height: 12px;
+        margin-bottom: 1px;
+    }
+}
+
+/* Animation for loading */
+.calendar-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 420px;
+    color: #6c757d;
+}
+
+.calendar-loading i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

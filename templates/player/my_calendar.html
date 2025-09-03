@@ -1,23 +1,196 @@
-
 <!-- templates/player/my_calendar.html -->
 {% extends "base.html" %}
 {% block title %}My Calendar - TennisMatchUp{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/calendar.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <h1><i class="fas fa-calendar-alt me-2"></i>My Tennis Calendar</h1>
-    
-    <div class="alert alert-info">
-        <h5>Calendar View</h5>
-        <p class="mb-0">Your booking calendar is being prepared.</p>
-        {% if bookings %}
-            <p class="mt-2">Your upcoming bookings:</p>
-            {% for booking in bookings %}
-                <div class="mt-2 p-2 border rounded">
-                    {{ booking.court.name }} - {{ booking.booking_date }} at {{ booking.start_time }}
-                    <span class="badge bg-{{ booking.get_status_color() }} ms-2">{{ booking.status }}</span>
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Calendar Header -->
+        <div class="col-12 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="fas fa-calendar-alt me-2 text-tennis"></i>My Tennis Calendar</h1>
+                <div class="btn-group">
+                    <button class="btn btn-outline-tennis" id="prevMonth">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-tennis" id="todayBtn">Today</button>
+                    <button class="btn btn-outline-tennis" id="nextMonth">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
                 </div>
-            {% endfor %}
-        {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Calendar View -->
+        <div class="col-lg-8">
+            <div class="card calendar-card">
+                <div class="card-header bg-tennis text-white">
+                    <h5 class="mb-0 text-center" id="currentMonthYear">
+                        <i class="fas fa-calendar me-2"></i><span id="monthDisplay"></span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Calendar Grid -->
+                    <div class="calendar-container">
+                        <!-- Weekday Headers -->
+                        <div class="weekday-header">
+                            <div class="weekday-cell">Sun</div>
+                            <div class="weekday-cell">Mon</div>
+                            <div class="weekday-cell">Tue</div>
+                            <div class="weekday-cell">Wed</div>
+                            <div class="weekday-cell">Thu</div>
+                            <div class="weekday-cell">Fri</div>
+                            <div class="weekday-cell">Sat</div>
+                        </div>
+                        <!-- Calendar Days -->
+                        <div id="calendarGrid" class="calendar-grid">
+                            <!-- Days will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Today's Schedule -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>Today's Schedule
+                        <span class="badge bg-tennis ms-2" id="todayCount">0</span>
+                    </h6>
+                </div>
+                <div class="card-body" id="todaySchedule">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-tennis-ball fa-2x mb-2"></i>
+                        <p>No bookings today</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upcoming Bookings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-upcoming me-2"></i>Upcoming Bookings
+                        <span class="badge bg-secondary ms-2">{{ bookings|length }}</span>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if bookings %}
+                        {% for booking in bookings[:5] %}
+                        <div class="booking-item mb-3 p-2 border rounded">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1 text-primary">{{ booking.court.name }}</h6>
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        {{ booking.booking_date.strftime('%a, %b %d') }}
+                                    </small>
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ booking.start_time.strftime('%I:%M %p') }} - {{ booking.end_time.strftime('%I:%M %p') }}
+                                    </small>
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-map-marker-alt me-1"></i>
+                                        {{ booking.court.location }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-{{ booking.get_status_color() }}">
+                                        {{ booking.status|title }}
+                                    </span>
+                                    {% if booking.total_cost %}
+                                    <div class="text-muted small mt-1">₪{{ "%.0f"|format(booking.total_cost) }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% if bookings|length > 5 %}
+                        <div class="text-center">
+                            <small class="text-muted">And {{ bookings|length - 5 }} more...</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-calendar-plus fa-2x mb-2"></i>
+                            <p class="mb-2">No upcoming bookings</p>
+                            <a href="{{ url_for('player.book_court') }}" class="btn btn-sm btn-tennis">
+                                <i class="fas fa-plus me-1"></i>Book a Court
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>This Month
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-number text-success">{{ booking_groups.confirmed|length }}</div>
+                                <div class="stat-label">Confirmed</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-number text-warning">{{ booking_groups.pending|length }}</div>
+                                <div class="stat-label">Pending</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-number text-info">{{ bookings|length }}</div>
+                                <div class="stat-label">Total</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
+
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Booking Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Content populated by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Pass booking data to JavaScript
+window.bookingsData = "{{ bookings_json|safe }}";
+window.currentPlayer = "{{ player.id }}";
+</script>
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

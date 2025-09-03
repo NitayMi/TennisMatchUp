@@ -583,79 +583,79 @@ def get_available_slots(court_id):
         })
         
     except Exception as e:
-                # הוסף את ה-routes החסרים הללו לסוף קובץ routes/player.py שלך
-        # (לפני השורה האחרונה של הקובץ)
-
-        @player_bp.route('/edit-profile', methods=['GET', 'POST'])
-        @login_required
-        @player_required
-        def edit_profile():
-            """Edit player profile"""
-            user_id = session['user_id']
-            user = User.query.get(user_id)
-            player = Player.query.filter_by(user_id=user_id).first()
-            
-            if request.method == 'POST':
-                # Update user info
-                user.full_name = request.form.get('full_name', '').strip()
-                user.phone_number = request.form.get('phone_number', '').strip()
-                
-                # Update player info
-                player.skill_level = request.form.get('skill_level', '')
-                player.preferred_location = request.form.get('preferred_location', '').strip()
-                player.availability = request.form.get('availability', '')
-                player.bio = request.form.get('bio', '').strip()
-                player.playing_style = request.form.get('playing_style', '')
-                player.preferred_court_type = request.form.get('preferred_court_type', '')
-                player.years_playing = request.form.get('years_playing', type=int)
-                player.max_travel_distance = request.form.get('max_travel_distance', type=int)
-                
-                try:
-                    db.session.commit()
-                    flash('Profile updated successfully!', 'success')
-                    return redirect(url_for('player.dashboard'))
-                except Exception as e:
-                    db.session.rollback()
-                    flash('Error updating profile. Please try again.', 'error')
-            
-            return render_template('player/edit_profile.html', user=user, player=player)
-
-        @player_bp.route('/profile')
-        @login_required
-        @player_required
-        def profile():
-            """View player profile"""
-            user_id = session['user_id']
-            user = User.query.get(user_id)
-            player = Player.query.filter_by(user_id=user_id).first()
-            
-            # Get profile completion stats
-            profile_stats = RuleEngine.validate_player_profile_completion(player)
-            
-            return render_template('player/profile.html', 
-                                user=user, 
-                                player=player,
-                                profile_stats=profile_stats)
-
-        @player_bp.route('/search')
-        @login_required
-        @player_required  
-        def search():
-            """Search for courts and players"""
-            # This is a simple search page that combines court and player search
-            return render_template('player/search.html')
-
-        @player_bp.route('/matches')
-        @login_required
-        @player_required
-        def matches():
-            """Matches page - alias for find_matches"""
-            return redirect(url_for('player.find_matches'))
-
-        @player_bp.route('/courts')
-        @login_required
-        @player_required
-        def courts():
-            """Courts page - alias for book_court"""
-            return redirect(url_for('player.book_court'))
         return jsonify({'error': 'Failed to get available slots'}), 500
+
+# Add missing routes to the end of routes/player.py
+
+@player_bp.route('/edit-profile', methods=['GET', 'POST'])
+@login_required
+@player_required
+def edit_profile():
+    """Edit player profile"""
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    player = Player.query.filter_by(user_id=user_id).first()
+    
+    if request.method == 'POST':
+        # Update user info
+        user.full_name = request.form.get('full_name', '').strip()
+        user.phone_number = request.form.get('phone_number', '').strip()
+        
+        # Update player info
+        player.skill_level = request.form.get('skill_level', '')
+        player.preferred_location = request.form.get('preferred_location', '').strip()
+        player.availability = request.form.get('availability', '')
+        player.bio = request.form.get('bio', '').strip()
+        player.playing_style = request.form.get('playing_style', '')
+        player.preferred_court_type = request.form.get('preferred_court_type', '')
+        player.years_playing = request.form.get('years_playing', type=int)
+        player.max_travel_distance = request.form.get('max_travel_distance', type=int)
+        
+        try:
+            db.session.commit()
+            flash('Profile updated successfully!', 'success')
+            return redirect(url_for('player.dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error updating profile. Please try again.', 'error')
+    
+    return render_template('player/edit_profile.html', user=user, player=player)
+
+@player_bp.route('/profile')
+@login_required
+@player_required
+def profile():
+    """View player profile"""
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    player = Player.query.filter_by(user_id=user_id).first()
+    
+    # Get profile completion stats
+    profile_stats = RuleEngine.validate_player_profile_completion(player)
+    
+    return render_template('player/profile.html', 
+                        user=user, 
+                        player=player,
+                        profile_stats=profile_stats)
+
+@player_bp.route('/search')
+@login_required
+@player_required  
+def search():
+    """Search for courts and players"""
+    # This is a simple search page that combines court and player search
+    return render_template('player/search.html')
+
+@player_bp.route('/matches')
+@login_required
+@player_required
+def matches():
+    """Matches page - alias for find_matches"""
+    return redirect(url_for('player.find_matches'))
+
+@player_bp.route('/courts')
+@login_required
+@player_required
+def courts():
+    """Courts page - alias for book_court"""
+    return redirect(url_for('player.book_court'))

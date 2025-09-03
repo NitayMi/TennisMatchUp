@@ -1,8 +1,7 @@
+
 /**
  * Tennis Calendar JavaScript Module
- * Interactive calendar for booking management
  */
-
 class TennisCalendar {
     constructor() {
         this.currentDate = new Date();
@@ -16,6 +15,7 @@ class TennisCalendar {
     }
 
     init() {
+        console.log('Calendar initializing...', this.bookings);
         this.setupModal();
         this.setupEventListeners();
         this.processBookingsData();
@@ -24,47 +24,17 @@ class TennisCalendar {
         this.updateMonthDisplay();
     }
 
-    setupModal() {
-        const modalElement = document.getElementById('bookingModal');
-        if (modalElement) {
-            this.modal = new bootstrap.Modal(modalElement);
-        }
-    }
-
     setupEventListeners() {
-        // Navigation buttons
-        document.getElementById('prevMonth')?.addEventListener('click', () => {
-            this.navigateMonth(-1);
-        });
-
-        document.getElementById('nextMonth')?.addEventListener('click', () => {
-            this.navigateMonth(1);
-        });
-
-        document.getElementById('todayBtn')?.addEventListener('click', () => {
-            this.goToToday();
-        });
-
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-            
-            switch(e.key) {
-                case 'ArrowLeft':
-                    this.navigateMonth(-1);
-                    break;
-                case 'ArrowRight':
-                    this.navigateMonth(1);
-                    break;
-                case 'Home':
-                    this.goToToday();
-                    break;
-            }
-        });
+        const prevBtn = document.getElementById('prevMonth');
+        const nextBtn = document.getElementById('nextMonth');
+        const todayBtn = document.getElementById('todayBtn');
+        
+        if (prevBtn) prevBtn.addEventListener('click', () => this.navigateMonth(-1));
+        if (nextBtn) nextBtn.addEventListener('click', () => this.navigateMonth(1));
+        if (todayBtn) todayBtn.addEventListener('click', () => this.goToToday());
     }
 
     processBookingsData() {
-        // Convert date strings to Date objects and organize by date
         this.bookingsByDate = {};
         
         this.bookings.forEach(booking => {
@@ -74,6 +44,102 @@ class TennisCalendar {
             }
             this.bookingsByDate[dateKey].push(booking);
         });
+        
+        console.log('Processed bookings:', this.bookingsByDate);
+    }
+
+    renderCalendar() {
+        const grid = document.getElementById('calendarGrid');
+        if (!grid) {
+            console.error('Calendar grid not found');
+            return;
+        }
+
+        grid.innerHTML = '';
+
+        const firstDay = new Date(this.currentYear, this.currentMonth, 1);
+        const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        const today = new Date();
+        
+        for (let i = 0; i < 42; i++) {
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+            
+            const dateKey = this.formatDateKey(currentDate);
+            const dayBookings = this.bookingsByDate[dateKey] || [];
+            
+            const dayElement = this.createDayElement({
+                date: currentDate,
+                dateKey: dateKey,
+                dayNumber: currentDate.getDate(),
+                bookings: dayBookings,
+                isCurrentMonth: currentDate.getMonth() === this.currentMonth,
+                isToday: this.isSameDate(currentDate, today),
+                hasBookings: dayBookings.length > 0
+            });
+            
+            grid.appendChild(dayElement);
+        }
+    }
+
+    createDayElement(day) {
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        
+        if (!day.isCurrentMonth) dayElement.classList.add('other-month');
+        if (day.isToday) dayElement.classList.add('today');
+        if (day.hasBookings) dayElement.classList.add('has-bookings');
+
+        dayElement.addEventListener('click', () => this.selectDate(day));
+
+        const dayNumber = document.createElement('div');
+        dayNumber.className = 'day-number';
+        dayNumber.textContent = day.dayNumber;
+        dayElement.appendChild(dayNumber);
+
+        const bookingsContainer = document.createElement('div');
+        bookingsContainer.className = 'day-bookings';
+
+        const visibleBookings = day.bookings.slice(0, 3);
+        visibleBookings.forEach(booking => {
+            const bookingDot = document.createElement('span');
+            bookingDot.className = `booking-dot ${booking.status}`;
+            bookingDot.textContent = `${booking.start_time} ${booking.court.name}`;
+            bookingDot.title = `${booking.court.name} at ${booking.start_time} - ${booking.end_time}`;
+            bookingsContainer.appendChild(bookingDot);
+        });
+
+        dayElement.appendChild(bookingsContainer);
+
+        if (day.bookings.length > 3) {
+            const countBadge = document.createElement('div');
+            countBadge.className = 'booking-count';
+            countBadge.textContent = `+${day.bookings.length - 3}`;
+            dayElement.appendChild(countBadge);
+        }
+
+        return dayElement;
+    }
+
+    selectDate(day) {
+        if (day.hasBookings) {
+            this.showBookingDetails(day);
+        } else if (day.isCurrentMonth) {
+            const dateParam = this.formatDateKey(day.date);
+            window.location.href = `/player/book-court?date=${dateParam}`;
+        }
+    }
+
+    showBookingDetails(day) {
+        // Simple alert for now - can enhance later
+        let details = `${day.date.toDateString()}\n\n`;
+        day.bookings.forEach(booking => {
+            details += `${booking.court.name}\n${booking.start_time} - ${booking.end_time}\nStatus: ${booking.status}\n\n`;
+        });
+        alert(details);
     }
 
     navigateMonth(direction) {
@@ -112,199 +178,43 @@ class TennisCalendar {
         }
     }
 
-    renderCalendar() {
-        const grid = document.getElementById('calendarGrid');
-        if (!grid) return;
-
-        // Clear previous calendar
-        grid.innerHTML = '<div class="calendar-loading"><i class="fas fa-spinner"></i></div>';
-
-        // Calculate calendar layout
-        const firstDay = new Date(this.currentYear, this.currentMonth, 1);
-        const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0);
-        const startDate = new Date(firstDay);
-        startDate.setDate(startDate.getDate() - firstDay.getDay());
-
-        const today = new Date();
-        const isCurrentMonth = (date) => date.getMonth() === this.currentMonth;
-        const isToday = (date) => 
-            date.getDate() === today.getDate() &&
-            date.getMonth() === today.getMonth() &&
-            date.getFullYear() === today.getFullYear();
-
-        // Generate calendar days
-        const calendarDays = [];
-        const currentDate = new Date(startDate);
-
-        for (let i = 0; i < 42; i++) { // 6 weeks * 7 days
-            const dateKey = this.formatDateKey(currentDate);
-            const dayBookings = this.bookingsByDate[dateKey] || [];
-            
-            calendarDays.push({
-                date: new Date(currentDate),
-                dateKey: dateKey,
-                dayNumber: currentDate.getDate(),
-                bookings: dayBookings,
-                isCurrentMonth: isCurrentMonth(currentDate),
-                isToday: isToday(currentDate),
-                hasBookings: dayBookings.length > 0
-            });
-
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-
-        // Render days
-        setTimeout(() => {
-            grid.innerHTML = '';
-            calendarDays.forEach(day => {
-                grid.appendChild(this.createDayElement(day));
-            });
-        }, 100);
-    }
-
-    createDayElement(day) {
-        const dayElement = document.createElement('div');
-        dayElement.className = 'calendar-day';
-        
-        if (!day.isCurrentMonth) dayElement.classList.add('other-month');
-        if (day.isToday) dayElement.classList.add('today');
-        if (day.hasBookings) dayElement.classList.add('has-bookings');
-
-        dayElement.addEventListener('click', () => {
-            this.selectDate(day);
-        });
-
-        // Day number
-        const dayNumber = document.createElement('div');
-        dayNumber.className = 'day-number';
-        dayNumber.textContent = day.dayNumber;
-        dayElement.appendChild(dayNumber);
-
-        // Bookings container
-        const bookingsContainer = document.createElement('div');
-        bookingsContainer.className = 'day-bookings';
-
-        // Show up to 3 bookings as dots
-        const visibleBookings = day.bookings.slice(0, 3);
-        visibleBookings.forEach(booking => {
-            const bookingDot = document.createElement('span');
-            bookingDot.className = `booking-dot ${booking.status}`;
-            bookingDot.textContent = `${booking.start_time} ${booking.court.name}`;
-            bookingDot.title = `${booking.court.name} at ${booking.start_time} - ${booking.end_time}`;
-            bookingsContainer.appendChild(bookingDot);
-        });
-
-        dayElement.appendChild(bookingsContainer);
-
-        // Booking count badge
-        if (day.bookings.length > 3) {
-            const countBadge = document.createElement('div');
-            countBadge.className = 'booking-count';
-            countBadge.textContent = `+${day.bookings.length - 3}`;
-            dayElement.appendChild(countBadge);
-        }
-
-        return dayElement;
-    }
-
-    selectDate(day) {
-        this.selectedDate = day;
-        
-        if (day.hasBookings) {
-            this.showBookingDetails(day);
-        } else if (day.isCurrentMonth) {
-            // Could redirect to booking page with date pre-filled
-            const dateParam = this.formatDateKey(day.date);
-            window.location.href = `/player/book-court?date=${dateParam}`;
-        }
-    }
-
-    showBookingDetails(day) {
-        if (!this.modal) return;
-
-        const modalContent = document.getElementById('modalContent');
-        if (!modalContent) return;
-
-        const dateString = day.date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-
-        let content = `<h6 class="mb-3">${dateString}</h6>`;
-
-        day.bookings.forEach(booking => {
-            const statusColor = this.getStatusColor(booking.status);
-            content += `
-                <div class="booking-detail mb-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <strong>${booking.court.name}</strong>
-                            <div class="text-muted small">
-                                <i class="fas fa-clock me-1"></i>
-                                ${booking.start_time} - ${booking.end_time}
-                            </div>
-                            <div class="text-muted small">
-                                <i class="fas fa-map-marker-alt me-1"></i>
-                                ${booking.court.location}
-                            </div>
-                            ${booking.notes ? `<div class="text-muted small mt-1">${booking.notes}</div>` : ''}
-                        </div>
-                        <div class="text-end">
-                            <span class="badge bg-${statusColor}">${booking.status}</span>
-                            ${booking.total_cost ? `<div class="text-muted small mt-1">₪${Math.round(booking.total_cost)}</div>` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        });
-
-        modalContent.innerHTML = content;
-        this.modal.show();
-    }
-
     updateTodaySchedule() {
         const todayKey = this.formatDateKey(new Date());
         const todayBookings = this.bookingsByDate[todayKey] || [];
         
-        const scheduleContainer = document.getElementById('todaySchedule');
         const countElement = document.getElementById('todayCount');
+        const scheduleContainer = document.getElementById('todaySchedule');
         
         if (countElement) {
             countElement.textContent = todayBookings.length;
         }
 
-        if (!scheduleContainer) return;
-
-        if (todayBookings.length === 0) {
-            scheduleContainer.innerHTML = `
-                <div class="text-center text-muted">
-                    <i class="fas fa-tennis-ball fa-2x mb-2"></i>
-                    <p>No bookings today</p>
-                    <a href="/player/book-court" class="btn btn-sm btn-tennis">Book a Court</a>
-                </div>
-            `;
-            return;
-        }
-
-        let scheduleHtml = '';
-        todayBookings.forEach(booking => {
-            const statusColor = this.getStatusColor(booking.status);
-            scheduleHtml += `
-                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
-                    <div>
-                        <strong class="d-block">${booking.court.name}</strong>
-                        <small class="text-muted">
-                            ${booking.start_time} - ${booking.end_time}
-                        </small>
+        if (scheduleContainer) {
+            if (todayBookings.length === 0) {
+                scheduleContainer.innerHTML = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-tennis-ball fa-2x mb-2"></i>
+                        <p>No bookings today</p>
+                        <a href="/player/book-court" class="btn btn-sm btn-tennis">Book a Court</a>
                     </div>
-                    <span class="badge bg-${statusColor}">${booking.status}</span>
-                </div>
-            `;
-        });
-
-        scheduleContainer.innerHTML = scheduleHtml;
+                `;
+            } else {
+                let scheduleHtml = '';
+                todayBookings.forEach(booking => {
+                    const statusColor = this.getStatusColor(booking.status);
+                    scheduleHtml += `
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                            <div>
+                                <strong class="d-block">${booking.court.name}</strong>
+                                <small class="text-muted">${booking.start_time} - ${booking.end_time}</small>
+                            </div>
+                            <span class="badge bg-${statusColor}">${booking.status}</span>
+                        </div>
+                    `;
+                });
+                scheduleContainer.innerHTML = scheduleHtml;
+            }
+        }
     }
 
     getStatusColor(status) {
@@ -320,12 +230,23 @@ class TennisCalendar {
     formatDateKey(date) {
         return date.toISOString().split('T')[0];
     }
+
+    isSameDate(date1, date2) {
+        return date1.getDate() === date2.getDate() &&
+               date1.getMonth() === date2.getMonth() &&
+               date1.getFullYear() === date2.getFullYear();
+    }
+
+    setupModal() {
+        const modalElement = document.getElementById('bookingModal');
+        if (modalElement) {
+            this.modal = new bootstrap.Modal(modalElement);
+        }
+    }
 }
 
-// Initialize calendar when DOM is loaded
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing calendar...');
     new TennisCalendar();
 });
-
-// Export for potential external use
-window.TennisCalendar = TennisCalendar;

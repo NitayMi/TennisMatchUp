@@ -228,17 +228,14 @@ def create_booking(court_id):
 @login_required
 @player_required
 def my_calendar():
-    """View personal calendar with bookings and matches"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get all bookings for this player
     bookings = Booking.query.filter_by(player_id=player.id).order_by(
         Booking.booking_date.desc(),
         Booking.start_time.desc()
     ).limit(50).all()
     
-    # Group bookings by status for display
     booking_groups = {
         'confirmed': [b for b in bookings if b.status == 'confirmed'],
         'pending': [b for b in bookings if b.status == 'pending'],
@@ -246,7 +243,7 @@ def my_calendar():
         'rejected': [b for b in bookings if b.status == 'rejected']
     }
     
-    # Prepare bookings data for JavaScript (JSON format)
+    # תקן JSON
     bookings_json = []
     for booking in bookings:
         booking_data = {
@@ -266,6 +263,7 @@ def my_calendar():
         bookings_json.append(booking_data)
     
     import json
+    print(f"DEBUG: Found {len(bookings)} bookings")  # Debug
     
     return render_template('player/my_calendar.html',
                          player=player,

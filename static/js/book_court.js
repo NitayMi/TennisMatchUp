@@ -17,6 +17,20 @@ class BookCourtManager {
         this.setupModal();
         this.populateTimeSlots();
         this.setMinDate();
+        this.setDateFromURL();
+    }
+
+    // הוסף פונקציה חדשה:
+    setDateFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const dateParam = urlParams.get('date');
+        
+        if (dateParam) {
+            const dateInput = document.getElementById('date');
+            if (dateInput) {
+                dateInput.value = dateParam;
+            }
+        }
     }
 
     setupEventListeners() {

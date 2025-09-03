@@ -1,5 +1,20 @@
 /* Calendar Styles for TennisMatchUp */
 
+.bg-tennis {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+.card-header.bg-tennis h5,
+.card-header.bg-tennis .text-white {
+    color: white !important;
+}
+
+#monthDisplay {
+    color: white !important;
+    font-weight: bold;
+}
+
 .calendar-card {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     border: none;

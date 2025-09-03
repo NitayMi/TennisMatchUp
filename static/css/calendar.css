@@ -270,3 +270,26 @@
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
+
+/* Modal enhancements */
+.modal-xl {
+    max-width: 1200px;
+}
+
+#bookingFrameContainer {
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.modal-body .container {
+    padding: 20px;
+}
+
+.modal .card {
+    border: none;
+    box-shadow: none;
+}
+
+.spinner-border.text-tennis {
+    color: #28a745 !important;
+}

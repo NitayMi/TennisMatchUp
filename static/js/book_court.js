@@ -20,19 +20,30 @@ class BookCourtManager {
         this.setDateFromURL();
     }
 
-    // הוסף פונקציה חדשה:
     setDateFromURL() {
         const urlParams = new URLSearchParams(window.location.search);
         const dateParam = urlParams.get('date');
         
+        console.log('URL date parameter:', dateParam); // Debug
+        
         if (dateParam) {
-            const dateInput = document.getElementById('date');
+            // Set the date filter
+            const dateInput = document.querySelector('input[type="date"]');
             if (dateInput) {
                 dateInput.value = dateParam;
+                console.log('Date set to:', dateParam); // Debug
+            }
+            
+            // Also set it in any booking modal that might be open
+            const bookingDateInput = document.getElementById('booking_date');
+            if (bookingDateInput) {
+                bookingDateInput.value = dateParam;
+                console.log('Booking date set to:', dateParam); // Debug
             }
         }
     }
 
+    
     setupEventListeners() {
         // Book court buttons
         document.querySelectorAll('.book-court-btn').forEach(btn => {

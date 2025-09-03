@@ -188,9 +188,16 @@
 
 {% block extra_scripts %}
 <script>
+console.log('Setting up calendar data...');
 // Pass booking data to JavaScript
-window.bookingsData = "{{ bookings_json|safe }}";
-window.currentPlayer = "{{ player.id }}";
+try {
+    window.bookingsData = JSON.parse('{{ bookings_json|safe }}');
+    window.currentPlayer = '{{ player.id }}';
+    console.log('Calendar data set:', window.bookingsData);
+} catch (error) {
+    console.error('Error setting calendar data:', error);
+    window.bookingsData = [];
+}
 </script>
 <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

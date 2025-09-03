@@ -2,12 +2,23 @@
 /**
  * Tennis Calendar JavaScript Module
  */
+
+/**
+ * Tennis Calendar JavaScript Module
+ */
 class TennisCalendar {
     constructor() {
+        console.log('TennisCalendar constructor called');
+        console.log('window.bookingsData:', window.bookingsData);
+        
         this.currentDate = new Date();
         this.currentMonth = this.currentDate.getMonth();
         this.currentYear = this.currentDate.getFullYear();
+        
+        // Make sure we have data
         this.bookings = window.bookingsData || [];
+        console.log('this.bookings:', this.bookings);
+        
         this.selectedDate = null;
         this.modal = null;
         

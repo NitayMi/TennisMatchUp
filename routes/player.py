@@ -264,12 +264,17 @@ def my_calendar():
     
     import json
     print(f"DEBUG: Found {len(bookings)} bookings")  # Debug
+    # בפונקציה my_calendar, החלף את הסוף עם:
+    
+    print(f"DEBUG: Found {len(bookings)} bookings")  # Debug line שכבר קיים
+    print(f"DEBUG: JSON data: {bookings_json}")  # הוסף שורה זו
     
     return render_template('player/my_calendar.html',
                          player=player,
                          bookings=bookings,
                          booking_groups=booking_groups,
                          bookings_json=json.dumps(bookings_json))
+
 
 @player_bp.route('/messages')
 @login_required

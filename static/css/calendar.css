@@ -293,3 +293,196 @@
 .spinner-border.text-tennis {
     color: #28a745 !important;
 }
+
+/* הוסף את הקוד הזה ל-static/css/calendar.css */
+
+/* Calendar Grid Styles */
+.calendar-container {
+    width: 100%;
+}
+
+.weekday-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #28a745;
+}
+
+.weekday-cell {
+    padding: 15px 10px;
+    text-align: center;
+    font-weight: bold;
+    color: #495057;
+    border-right: 1px solid #dee2e6;
+}
+
+.weekday-cell:last-child {
+    border-right: none;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #dee2e6;
+}
+
+.calendar-day {
+    background-color: white;
+    min-height: 120px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-day:hover {
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.calendar-day.other-month {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.calendar-day.today {
+    background-color: #e3f2fd;
+    border: 2px solid #28a745;
+}
+
+.calendar-day.past {
+    background-color: #fafafa;
+    cursor: not-allowed;
+}
+
+.calendar-day.has-bookings {
+    background-color: #f0f8ff;
+}
+
+.day-number {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.booking-indicators {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.booking-indicator {
+    height: 4px;
+    border-radius: 2px;
+    width: 100%;
+}
+
+.booking-indicator.status-confirmed {
+    background-color: #28a745;
+}
+
+.booking-indicator.status-pending {
+    background-color: #ffc107;
+}
+
+.booking-indicator.status-cancelled {
+    background-color: #dc3545;
+}
+
+.booking-indicator.status-rejected {
+    background-color: #6c757d;
+}
+
+.booking-more {
+    font-size: 10px;
+    color: #666;
+    text-align: center;
+    font-weight: bold;
+}
+
+/* Modal Styles */
+.booking-details {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.booking-item {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+.booking-item.status-confirmed {
+    background-color: #d4edda;
+    border-left: 4px solid #28a745;
+}
+
+.booking-item.status-pending {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
+
+.booking-item.status-cancelled {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+
+.booking-item.status-rejected {
+    background-color: #e2e3e5;
+    border-left: 4px solid #6c757d;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .calendar-day {
+        min-height: 80px;
+        padding: 4px;
+    }
+    
+    .day-number {
+        font-size: 14px;
+    }
+    
+    .weekday-cell {
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+}
+
+/* Fix for month/year display */
+.bg-tennis {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+#monthDisplay {
+    color: white !important;
+    font-weight: bold;
+}
+
+/* Modal enhancements */
+.modal-xl {
+    max-width: 1200px;
+}
+
+#bookingFrameContainer {
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.modal-body .container {
+    padding: 20px;
+}
+
+.modal .card {
+    border: none;
+    box-shadow: none;
+}
+
+.spinner-border.text-tennis {
+    color: #28a745 !important;
+}

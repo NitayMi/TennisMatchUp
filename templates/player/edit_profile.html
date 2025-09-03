@@ -1,86 +1,70 @@
+<!-- צור את הקובץ templates/player/edit_profile.html -->
 {% extends "base.html" %}
-
 {% block title %}Edit Profile - TennisMatchUp{% endblock %}
 
 {% block content %}
-<div class="bg-tennis-green text-white py-4">
-    <div class="container">
-        <h1><i class="fas fa-user-edit me-2"></i>Edit Profile</h1>
-        <p class="lead mb-0">Update your tennis player profile</p>
-    </div>
-</div>
-
 <div class="container py-4">
-    <div class="row justify-content-center">
+    <h1><i class="fas fa-user-edit me-2"></i>Edit Profile</h1>
+    
+    <div class="row">
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">Player Information</h5>
-                </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ url_for('player.edit_profile') }}">
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="full_name" class="form-label">Full Name</label>
-                                <input type="text" class="form-control" id="full_name" name="full_name" 
-                                       value="{{ user.full_name }}" required>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="phone_number" class="form-label">Phone Number</label>
-                                <input type="tel" class="form-control" id="phone_number" name="phone_number" 
-                                       value="{{ user.phone_number or '' }}">
-                            </div>
-                        </div>
+                    <form method="POST">
+                        <h5 class="mb-3">Personal Information</h5>
                         
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="skill_level" class="form-label">Skill Level</label>
-                                <select class="form-select" id="skill_level" name="skill_level" required>
-                                    <option value="beginner" {% if player.skill_level == 'beginner' %}selected{% endif %}>Beginner</option>
-                                    <option value="intermediate" {% if player.skill_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
-                                    <option value="advanced" {% if player.skill_level == 'advanced' %}selected{% endif %}>Advanced</option>
-                                    <option value="professional" {% if player.skill_level == 'professional' %}selected{% endif %}>Professional</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="preferred_location" class="form-label">Preferred Location</label>
-                                <input type="text" class="form-control" id="preferred_location" name="preferred_location" 
-                                       value="{{ player.preferred_location or '' }}" 
-                                       placeholder="e.g., Tel Aviv, Haifa, Jerusalem">
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="availability" class="form-label">Availability</label>
-                                <select class="form-select" id="availability" name="availability">
-                                    <option value="weekdays" {% if player.availability == 'weekdays' %}selected{% endif %}>Weekdays</option>
-                                    <option value="weekends" {% if player.availability == 'weekends' %}selected{% endif %}>Weekends</option>
-                                    <option value="evenings" {% if player.availability == 'evenings' %}selected{% endif %}>Evenings</option>
-                                    <option value="flexible" {% if player.availability == 'flexible' %}selected{% endif %}>Flexible</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="max_travel_distance" class="form-label">Max Travel Distance (km)</label>
-                                <input type="number" class="form-control" id="max_travel_distance" name="max_travel_distance" 
-                                       value="{{ player.max_travel_distance or 25 }}" min="5" max="100">
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">Full Name</label>
+                            <input type="text" class="form-control" name="full_name" 
+                                   value="{{ user.full_name }}" required>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="bio" class="form-label">Bio</label>
-                            <textarea class="form-control" id="bio" name="bio" rows="4" 
-                                      placeholder="Tell other players about your tennis experience, playing style, or what you're looking for...">{{ player.bio or '' }}</textarea>
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" name="phone_number" 
+                                   value="{{ user.phone_number or '' }}">
                         </div>
                         
-                        <div class="d-flex gap-3">
-                            <button type="submit" class="btn btn-tennis">
-                                <i class="fas fa-save me-2"></i>Save Changes
-                            </button>
-                            <a href="{{ url_for('player.dashboard') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
-                            </a>
+                        <hr>
+                        <h5 class="mb-3">Tennis Profile</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Skill Level</label>
+                            <select class="form-select" name="skill_level" required>
+                                <option value="">Select skill level</option>
+                                <option value="beginner" {% if player.skill_level == 'beginner' %}selected{% endif %}>Beginner</option>
+                                <option value="intermediate" {% if player.skill_level == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                                <option value="advanced" {% if player.skill_level == 'advanced' %}selected{% endif %}>Advanced</option>
+                                <option value="professional" {% if player.skill_level == 'professional' %}selected{% endif %}>Professional</option>
+                            </select>
                         </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Preferred Location</label>
+                            <input type="text" class="form-control" name="preferred_location" 
+                                   value="{{ player.preferred_location or '' }}" 
+                                   placeholder="e.g., Tel Aviv, Haifa">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Availability</label>
+                            <select class="form-select" name="availability">
+                                <option value="">Select availability</option>
+                                <option value="weekdays" {% if player.availability == 'weekdays' %}selected{% endif %}>Weekdays</option>
+                                <option value="weekends" {% if player.availability == 'weekends' %}selected{% endif %}>Weekends</option>
+                                <option value="evenings" {% if player.availability == 'evenings' %}selected{% endif %}>Evenings</option>
+                                <option value="flexible" {% if player.availability == 'flexible' %}selected{% endif %}>Flexible</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Bio</label>
+                            <textarea class="form-control" name="bio" rows="3" 
+                                      placeholder="Tell others about yourself...">{{ player.bio or '' }}</textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-tennis">Save Changes</button>
+                        <a href="{{ url_for('player.dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
                     </form>
                 </div>
             </div>
@@ -88,3 +72,5 @@
     </div>
 </div>
 {% endblock %}
+
+<!-- =====================================  -->

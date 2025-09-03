@@ -1,0 +1,33 @@
+<!-- צור את הקובץ templates/player/search.html -->
+{% extends "base.html" %}
+{% block title %}Search - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1><i class="fas fa-search me-2"></i>Search</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-3x text-tennis mb-3"></i>
+                    <h5>Find Players</h5>
+                    <p>Connect with other tennis enthusiasts</p>
+                    <a href="{{ url_for('player.find_matches') }}" class="btn btn-tennis">Search Players</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-map-marker-alt fa-3x text-tennis mb-3"></i>
+                    <h5>Find Courts</h5>
+                    <p>Book the perfect court for your game</p>
+                    <a href="{{ url_for('player.book_court') }}" class="btn btn-tennis">Search Courts</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

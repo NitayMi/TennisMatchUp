@@ -7,6 +7,7 @@ from models.database import db
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
+from models.message import Message
 from services.rule_engine import RuleEngine
 from services.geo_service import GeoService
 from sqlalchemy import func, and_, or_
@@ -1042,3 +1043,362 @@ class MatchingEngine:
             'avg_rate': round(float(item.avg_rate), 2) if item.avg_rate else 0,
             'trend_score': item.recent_bookings * 10 + item.court_count * 5
         } for item in trending]
+    
+"""
+Complete Missing Methods for services/matching_engine.py
+Add these methods to your existing matching_engine.py file
+"""
+
+# Add these methods to the MatchingEngine class:
+
+@staticmethod
+def get_recent_matches(player_id, limit=10):
+    """Get recent matches for a player"""
+    try:
+        player = Player.query.get(player_id)
+        if not player:
+            return []
+        
+        # Get recent players that this player has interacted with
+        recent_messages = db.session.query(Message.sender_id, Message.receiver_id).filter(
+            db.or_(
+                Message.sender_id == player.user_id,
+                Message.receiver_id == player.user_id
+            )
+        ).order_by(Message.created_at.desc()).limit(limit * 2).all()
+        
+        # Extract unique player IDs
+        player_ids = set()
+        for msg in recent_messages:
+            if msg.sender_id != player.user_id:
+                sender_player = Player.query.filter_by(user_id=msg.sender_id).first()
+                if sender_player:
+                    player_ids.add(sender_player.id)
+            if msg.receiver_id != player.user_id:
+                receiver_player = Player.query.filter_by(user_id=msg.receiver_id).first()
+                if receiver_player:
+                    player_ids.add(receiver_player.id)
+        
+        # If no recent interactions, find similar players
+        if not player_ids:
+            return MatchingEngine.find_matches(player_id, limit=limit)
+        
+        # Get player details with compatibility scores
+        matches = []
+        for pid in player_ids:
+            if len(matches) >= limit:
+                break
+            
+            match_player = Player.query.get(pid)
+            if match_player and match_player.user.is_active:
+                compatibility_score = MatchingEngine.calculate_compatibility_score(
+                    player, match_player
+                )
+                
+                matches.append({
+                    'player': match_player,
+                    'compatibility_score': compatibility_score,
+                    'distance_km': MatchingEngine.calculate_distance(player, match_player),
+                    'match_reason': 'Recent interaction'
+                })
+        
+        # Sort by compatibility score
+        matches.sort(key=lambda x: x['compatibility_score'], reverse=True)
+        return matches[:limit]
+        
+    except Exception as e:
+        print(f"Error getting recent matches: {e}")
+        return []
+
+@staticmethod
+def _recommend_courts_by_location_text(player1, player2, max_courts=5):
+    """Fallback court recommendation based on text location matching"""
+    try:
+        # Get locations from both players
+        location1 = player1.preferred_location or ""
+        location2 = player2.preferred_location or ""
+        
+        # Find courts that match either location
+        courts_query = Court.query.filter_by(is_active=True)
+        
+        location_courts = []
+        
+        if location1:
+            courts1 = courts_query.filter(
+                Court.location.ilike(f'%{location1}%')
+            ).limit(max_courts).all()
+            location_courts.extend(courts1)
+        
+        if location2 and location2 != location1:
+            courts2 = courts_query.filter(
+                Court.location.ilike(f'%{location2}%')
+            ).limit(max_courts).all()
+            location_courts.extend(courts2)
+        
+        # Remove duplicates and score courts
+        unique_courts = []
+        seen_court_ids = set()
+        
+        for court in location_courts:
+            if court.id not in seen_court_ids:
+                seen_court_ids.add(court.id)
+                
+                # Calculate basic scoring
+                score = 50  # Base score
+                
+                # Boost score if court matches both locations
+                if (location1 and location1.lower() in court.location.lower() and 
+                    location2 and location2.lower() in court.location.lower()):
+                    score += 30
+                
+                # Prefer lower cost courts
+                if court.hourly_rate <= 50:
+                    score += 20
+                elif court.hourly_rate <= 100:
+                    score += 10
+                
+                # Bonus for amenities
+                if court.has_lighting:
+                    score += 5
+                if court.has_parking:
+                    score += 5
+                
+                unique_courts.append({
+                    'court': court,
+                    'total_score': score,
+                    'distance_km': None,
+                    'recommendation_reason': f'Located near {location1 or location2}'
+                })
+        
+        # Sort by score
+        unique_courts.sort(key=lambda x: x['total_score'], reverse=True)
+        return unique_courts[:max_courts]
+        
+    except Exception as e:
+        print(f"Error in text-based court recommendation: {e}")
+        return []
+
+@staticmethod
+def _generate_court_recommendation_reason(court_data):
+    """Generate human-readable reason for court recommendation"""
+    try:
+        court = court_data['court']
+        distance_km = court_data.get('distance_km')
+        
+        reasons = []
+        
+        # Distance-based reasons
+        if distance_km is not None:
+            if distance_km <= 5:
+                reasons.append("Very close to both players")
+            elif distance_km <= 15:
+                reasons.append("Convenient location for both")
+            elif distance_km <= 30:
+                reasons.append("Fair meeting point")
+        
+        # Price-based reasons
+        if court.hourly_rate <= 30:
+            reasons.append("Great value pricing")
+        elif court.hourly_rate <= 60:
+            reasons.append("Reasonable rates")
+        
+        # Amenity-based reasons
+        amenity_features = []
+        if court.has_lighting:
+            amenity_features.append("lighting")
+        if court.has_parking:
+            amenity_features.append("parking")
+        if court.has_equipment_rental:
+            amenity_features.append("equipment rental")
+        if court.has_changing_rooms:
+            amenity_features.append("changing rooms")
+        
+        if amenity_features:
+            if len(amenity_features) == 1:
+                reasons.append(f"Has {amenity_features[0]}")
+            else:
+                reasons.append(f"Great amenities ({', '.join(amenity_features)})")
+        
+        # Surface preference
+        if court.surface in ['hard', 'clay']:
+            reasons.append(f"Popular {court.surface} court")
+        
+        # Fallback reason
+        if not reasons:
+            reasons.append("Available for booking")
+        
+        return " • ".join(reasons[:3])  # Limit to 3 main reasons
+        
+    except Exception as e:
+        print(f"Error generating recommendation reason: {e}")
+        return "Recommended court"
+
+@staticmethod
+def find_available_slots(court_id, date_str, min_duration_hours=1):
+    """Find available time slots for a court on a specific date"""
+    try:
+        from datetime import datetime, time, timedelta
+        
+        # Parse date
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        
+        # Get court
+        court = Court.query.get(court_id)
+        if not court:
+            return []
+        
+        # Get existing bookings for this date
+        existing_bookings = Booking.query.filter(
+            Booking.court_id == court_id,
+            Booking.booking_date == target_date,
+            Booking.status.in_(['confirmed', 'pending'])
+        ).order_by(Booking.start_time).all()
+        
+        # Define operating hours (6 AM to 10 PM)
+        opening_time = time(6, 0)
+        closing_time = time(22, 0)
+        
+        # Generate all possible slots
+        available_slots = []
+        current_time = opening_time
+        
+        while current_time.hour < closing_time.hour:
+            # Calculate slot end time
+            current_datetime = datetime.combine(target_date, current_time)
+            slot_end_datetime = current_datetime + timedelta(hours=min_duration_hours)
+            slot_end_time = slot_end_datetime.time()
+            
+            # Check if slot end time is within operating hours
+            if slot_end_time > closing_time:
+                break
+            
+            # Check if this slot conflicts with existing bookings
+            slot_available = True
+            for booking in existing_bookings:
+                # Check for overlap
+                if (current_time < booking.end_time and slot_end_time > booking.start_time):
+                    slot_available = False
+                    break
+            
+            if slot_available:
+                available_slots.append({
+                    'start_time': current_time.strftime('%H:%M'),
+                    'end_time': slot_end_time.strftime('%H:%M'),
+                    'duration_hours': min_duration_hours,
+                    'cost': min_duration_hours * court.hourly_rate
+                })
+            
+            # Move to next hour
+            current_datetime += timedelta(hours=1)
+            current_time = current_datetime.time()
+        
+        return available_slots
+        
+    except Exception as e:
+        print(f"Error finding available slots: {e}")
+        return []
+
+@staticmethod
+def calculate_compatibility_score(player1, player2):
+    """Calculate compatibility score between two players"""
+    try:
+        score = 0
+        max_score = 100
+        
+        # Skill level compatibility (30 points max)
+        skill_levels = {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}
+        skill1 = skill_levels.get(player1.skill_level, 2)
+        skill2 = skill_levels.get(player2.skill_level, 2)
+        skill_diff = abs(skill1 - skill2)
+        
+        if skill_diff == 0:
+            score += 30
+        elif skill_diff == 1:
+            score += 20
+        elif skill_diff == 2:
+            score += 10
+        # else: 0 points for skill difference > 2
+        
+        # Availability compatibility (20 points max)
+        if player1.availability and player2.availability:
+            if player1.availability == player2.availability:
+                score += 20
+            elif ('flexible' in player1.availability.lower() or 
+                  'flexible' in player2.availability.lower()):
+                score += 15
+            else:
+                # Check for partial matches
+                avail1_words = set(player1.availability.lower().split())
+                avail2_words = set(player2.availability.lower().split())
+                common_words = avail1_words.intersection(avail2_words)
+                if common_words:
+                    score += 10
+        
+        # Location compatibility (25 points max)
+        if player1.preferred_location and player2.preferred_location:
+            loc1 = player1.preferred_location.lower()
+            loc2 = player2.preferred_location.lower()
+            
+            if loc1 == loc2:
+                score += 25
+            elif any(word in loc2 for word in loc1.split()) or any(word in loc1 for word in loc2.split()):
+                score += 15
+            else:
+                score += 5  # Different locations but at least both specified
+        
+        # Playing style compatibility (15 points max)
+        if player1.playing_style and player2.playing_style:
+            if player1.playing_style == player2.playing_style:
+                score += 15
+            elif 'all-court' in [player1.playing_style, player2.playing_style]:
+                score += 10  # All-court players are compatible with anyone
+            else:
+                score += 5  # Different but complementary styles can work
+        
+        # Court surface preference (10 points max)
+        if player1.preferred_court_type and player2.preferred_court_type:
+            if player1.preferred_court_type == player2.preferred_court_type:
+                score += 10
+            else:
+                score += 3
+        
+        # Ensure score is within bounds
+        score = min(score, max_score)
+        score = max(score, 0)
+        
+        return round(score)
+        
+    except Exception as e:
+        print(f"Error calculating compatibility score: {e}")
+        return 50  # Return neutral score on error
+
+@staticmethod
+def calculate_distance(player1, player2):
+    """Calculate approximate distance between two players"""
+    try:
+        # If both players have coordinates, use precise calculation
+        if (player1.latitude and player1.longitude and 
+            player2.latitude and player2.longitude):
+            from services.geo_service import GeoService
+            return GeoService.calculate_distance(
+                (player1.latitude, player1.longitude),
+                (player2.latitude, player2.longitude)
+            )
+        
+        # Fallback: text-based location comparison
+        if player1.preferred_location and player2.preferred_location:
+            loc1 = player1.preferred_location.lower()
+            loc2 = player2.preferred_location.lower()
+            
+            if loc1 == loc2:
+                return 5  # Same area, assume 5km
+            elif any(word in loc2 for word in loc1.split()) or any(word in loc1 for word in loc2.split()):
+                return 15  # Related areas, assume 15km
+            else:
+                return 30  # Different areas, assume 30km
+        
+        return None  # Cannot estimate distance
+        
+    except Exception as e:
+        print(f"Error calculating distance: {e}")
+        return None

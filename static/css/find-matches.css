@@ -1,0 +1,332 @@
+/* Find Matches Page Styles */
+
+.match-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: all 0.3s ease;
+    margin-bottom: 1rem;
+}
+
+.match-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.match-card .card-header {
+    background: linear-gradient(135deg, var(--tennis-green), var(--tennis-light-green));
+    color: white;
+    border-bottom: none;
+    padding: 1rem 1.25rem;
+    border-radius: 12px 12px 0 0;
+}
+
+.player-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: var(--tennis-yellow);
+    color: var(--tennis-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-right: 1rem;
+}
+
+.skill-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.skill-beginner {
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+.skill-intermediate {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.skill-advanced {
+    background-color: #fff3e0;
+    color: #f57c00;
+}
+
+.skill-professional {
+    background-color: #ffebee;
+    color: #d32f2f;
+}
+
+.compatibility-score {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--tennis-green);
+}
+
+.compatibility-bar {
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+}
+
+.compatibility-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #0abde3);
+    border-radius: 4px;
+    transition: width 0.6s ease;
+}
+
+.distance-info {
+    display: flex;
+    align-items: center;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.distance-info i {
+    margin-right: 0.5rem;
+    color: var(--tennis-green);
+}
+
+.match-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn-connect {
+    background-color: var(--tennis-green);
+    border-color: var(--tennis-green);
+    color: white;
+    border-radius: 25px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-connect:hover {
+    background-color: var(--tennis-light-green);
+    transform: translateY(-1px);
+    box-shadow: 0 0.25rem 0.5rem rgba(44, 85, 48, 0.3);
+    color: white;
+}
+
+.btn-view-profile {
+    background-color: transparent;
+    border: 2px solid var(--tennis-green);
+    color: var(--tennis-green);
+    border-radius: 25px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-view-profile:hover {
+    background-color: var(--tennis-green);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.filters-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 2rem;
+}
+
+.filters-title {
+    color: var(--tennis-green);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.filters-title i {
+    margin-right: 0.5rem;
+    color: var(--tennis-yellow);
+}
+
+.filter-group {
+    margin-bottom: 1rem;
+}
+
+.filter-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-control-custom {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-control-custom:focus {
+    border-color: var(--tennis-green);
+    box-shadow: 0 0 0 0.2rem rgba(44, 85, 48, 0.25);
+}
+
+.no-matches-found {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.no-matches-found i {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.loading-matches {
+    text-align: center;
+    padding: 2rem;
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid var(--tennis-green);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.match-request-modal .modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+}
+
+.match-request-modal .modal-header {
+    background: var(--tennis-green);
+    color: white;
+    border-radius: 15px 15px 0 0;
+    border-bottom: none;
+}
+
+.match-request-modal .btn-close {
+    filter: invert(1);
+}
+
+.preferred-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.time-badge {
+    background-color: var(--light-gray);
+    color: var(--tennis-green);
+    padding: 0.25rem 0.5rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.player-stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+    margin: 1rem 0;
+}
+
+.stat-item {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--tennis-green);
+    display: block;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .match-card {
+        margin-bottom: 1rem;
+    }
+    
+    .player-avatar {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .compatibility-score {
+        font-size: 1.5rem;
+    }
+    
+    .match-actions {
+        flex-direction: column;
+    }
+    
+    .btn-connect,
+    .btn-view-profile {
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    
+    .player-stats {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}
+
+/* Animation effects */
+.match-card-enter {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.match-card-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(44, 85, 48, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(44, 85, 48, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(44, 85, 48, 0);
+    }
+}

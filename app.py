@@ -14,6 +14,10 @@ from routes.player import player_bp
 from routes.owner import owner_bp
 from routes.admin import admin_bp
 from routes.shared_booking import shared_booking_bp
+from routes.api import api_bp  # NEW: Import API routes
+
+# Import template filters
+from utils.template_filters import register_filters
 
 def create_app():
     """Application factory"""
@@ -33,6 +37,9 @@ def create_app():
     # Initialize database
     init_db(app)
     
+    # Register template filters
+    register_filters(app)
+    
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
@@ -40,6 +47,7 @@ def create_app():
     app.register_blueprint(owner_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(shared_booking_bp)
+    app.register_blueprint(api_bp)  # NEW: Register API routes
     
     # Error handlers
     @app.errorhandler(404)
@@ -72,6 +80,7 @@ if __name__ == '__main__':
     print("• Home: http://localhost:5000")
     print("• Login: http://localhost:5000/auth/login")
     print("• Register: http://localhost:5000/auth/register")
+    print("• API Docs: http://localhost:5000/api")
     print("• Admin: admin@tennismatchup.com / admin123")
     print("• Player Demo: player@demo.com / password123")
     print("• Owner Demo: owner@demo.com / password123")

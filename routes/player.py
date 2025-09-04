@@ -1,13 +1,20 @@
+"""
+Player Routes for TennisMatchUp
+CLEANED VERSION - All business logic moved to Services
+Controllers only handle HTTP concerns
+"""
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
 from models.message import Message
 from models.database import db
+from sqlalchemy.orm import joinedload
 from utils.decorators import login_required, player_required
+from services.booking_service import BookingService
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, timedelta
 import json
 
 player_bp = Blueprint('player', __name__, url_prefix='/player')
@@ -16,476 +23,232 @@ player_bp = Blueprint('player', __name__, url_prefix='/player')
 @login_required
 @player_required
 def dashboard():
-    """Player dashboard showing matches, bookings, and notifications"""
+    """Player dashboard - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get recent matches/recommendations
-    recent_matches = MatchingEngine.get_recent_matches(player.id)
+    # Get dashboard stats using service
+    stats_result = BookingService.get_booking_statistics(player.id, 'player', period_days=30)
+    stats = stats_result.get('statistics', {}) if stats_result['success'] else {}
     
-    # Get upcoming bookings
-    upcoming_bookings = Booking.query.filter_by(
-        player_id=player.id,
-        status='confirmed'
-    ).filter(Booking.booking_date >= db.func.current_date()).limit(5).all()
+    # Get recent bookings using service
+    bookings_result = BookingService.get_player_bookings(player.id, limit=5)
+    recent_bookings = bookings_result.get('bookings', []) if bookings_result['success'] else []
     
-    # Get unread messages
-    unread_messages = Message.query.filter_by(
-        receiver_id=user_id,
-        is_read=False
-    ).count()
-    
-    return render_template('player/dashboard.html',
+    return render_template('player/dashboard.html', 
                          player=player,
-                         recent_matches=recent_matches,
-                         upcoming_bookings=upcoming_bookings,
-                         unread_messages=unread_messages)
-
-@player_bp.route('/find-matches')
-@login_required
-@player_required
-def find_matches():
-    """Find and match with other players"""
-    user_id = session['user_id']
-    player = Player.query.filter_by(user_id=user_id).first()
-    
-    if not player:
-        flash('Player profile not found. Please complete your profile first.', 'error')
-        return redirect(url_for('player.dashboard'))
-    
-    # Get search filters from request
-    skill_level = request.args.get('skill_level', '').strip()
-    location = request.args.get('location', '').strip()
-    availability = request.args.get('availability', '').strip()
-    
-    try:
-        # Use matching engine to find compatible players
-        matches = MatchingEngine.find_matches(
-            player_id=player.id,
-            skill_level=skill_level if skill_level else None,
-            location=location if location else None,
-            availability=availability if availability else None,
-            limit=20
-        )
-        
-        # Process matches to ensure safe template rendering
-        processed_matches = []
-        for match in matches:
-            match_data = {
-                'player': match.get('player'),
-                'user': match.get('user'),
-                'compatibility_score': match.get('compatibility_score', 0),
-                'common_interests': match.get('common_interests', []),
-                'distance': match.get('distance'),
-                'recent_activity': None  # Disable for now to avoid errors
-            }
-            processed_matches.append(match_data)
-        
-        return render_template('player/find_matches.html',
-                             player=player,
-                             matches=processed_matches,
-                             skill_level=skill_level,
-                             location=location,
-                             availability=availability)
-    
-    except Exception as e:
-        # Handle errors gracefully in production
-        flash('Error occurred while searching for matches. Please try again.', 'error')
-        return render_template('player/find_matches.html',
-                             player=player,
-                             matches=[],
-                             skill_level=skill_level,
-                             location=location,
-                             availability=availability)
-
-# עדכן גם את הנתיב book_court הקיים:
+                         stats=stats,
+                         recent_bookings=recent_bookings)
 
 @player_bp.route('/book-court')
 @login_required
 @player_required
 def book_court():
-    """Browse and book available courts"""
+    """Show court booking page - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get search filters
-    location = request.args.get('location', '')
-    date = request.args.get('date', '')
-    court_type = request.args.get('court_type', '')
-    max_price = request.args.get('max_price', type=float)
+    # Get available courts using service
+    courts = MatchingEngine.recommend_courts(
+        player_id=player.id,
+        location=request.args.get('location'),
+        limit=20
+    )
     
-    # Build query for available courts
-    courts_query = Court.query.filter_by(is_active=True)
-    
-    if location:
-        courts_query = courts_query.filter(Court.location.ilike(f'%{location}%'))
-    if court_type:
-        courts_query = courts_query.filter_by(court_type=court_type)
-    if max_price:
-        courts_query = courts_query.filter(Court.hourly_rate <= max_price)
-    
-    available_courts = courts_query.all()
-    
-    # Check availability for specific date if provided
-    if date:
-        for court in available_courts:
-            # Get available time slots for this court on this date
-            court.available_slots = get_available_slots(court.id, date)
+    # Get booking date from query params
+    booking_date = request.args.get('date')
     
     return render_template('player/book_court.html',
-                         available_courts=available_courts,
-                         filters={
-                             'location': location,
-                             'date': date,
-                             'court_type': court_type,
-                             'max_price': max_price
-                         },
-                         datetime=datetime,
-                         player=player)
+                         courts=courts,
+                         selected_date=booking_date,
+                         player=player,
+                         filters={})
 
-
-def get_available_slots(court_id, date_str):
-    """Get available time slots for a court on a specific date"""
-    from datetime import datetime, time, timedelta
-    
-    try:
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-    except:
-        return []
-    
-    # Get existing bookings for this court on this date
-    existing_bookings = Booking.query.filter(
-        Booking.court_id == court_id,
-        Booking.booking_date == target_date,
-        Booking.status.in_(['confirmed', 'pending'])
-    ).all()
-    
-    # Generate potential time slots (8 AM to 10 PM, 1-hour slots)
-    available_slots = []
-    for hour in range(8, 22):  # 8 AM to 9 PM (last slot starts at 9 PM)
-        slot_start = time(hour, 0)
-        slot_end = time(hour + 1, 0)
-        
-        # Check if this slot conflicts with existing bookings
-        has_conflict = False
-        for booking in existing_bookings:
-            if (slot_start < booking.end_time and slot_end > booking.start_time):
-                has_conflict = True
-                break
-        
-        if not has_conflict:
-            available_slots.append({
-                'start_time': slot_start.strftime('%H:%M'),
-                'end_time': slot_end.strftime('%H:%M')
-            })
-    
-    return available_slots
-
-@player_bp.route('/book-court/<int:court_id>', methods=['POST'])
+@player_bp.route('/submit-booking', methods=['POST'])
 @login_required
 @player_required
-def create_booking(court_id):
-    """Create a booking request for a specific court"""
+def submit_booking():
+    """Submit booking request - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    booking_date = request.form.get('booking_date')
-    start_time = request.form.get('start_time')
-    end_time = request.form.get('end_time')
-    notes = request.form.get('notes', '')
+    # Extract form data
+    booking_data = {
+        'court_id': request.form.get('court_id', type=int),
+        'booking_date': request.form.get('booking_date'),
+        'start_time': request.form.get('start_time'),
+        'end_time': request.form.get('end_time'),
+        'notes': request.form.get('notes', '').strip()
+    }
     
-    # Validate booking using rule engine
-    validation_result = RuleEngine.validate_booking(
-        court_id=court_id,
+    # Delegate to service
+    result = BookingService.process_booking_request(
         player_id=player.id,
-        booking_date=booking_date,
-        start_time=start_time,
-        end_time=end_time
+        **booking_data
     )
     
-    if not validation_result['valid']:
-        flash(f'Booking failed: {validation_result["reason"]}', 'error')
-        return redirect(url_for('player.book_court'))
+    if result['success']:
+        flash(result['message'], 'success')
+        return jsonify(result)
+    else:
+        return jsonify(result), 400
+
+@player_bp.route('/my-bookings')
+@login_required
+@player_required
+def my_bookings():
+    """View player bookings - CLEANED VERSION"""
+    user_id = session['user_id']
+    player = Player.query.filter_by(user_id=user_id).first()
     
-    # Create booking request
-    booking = Booking(
-        court_id=court_id,
+    # Get bookings using service
+    result = BookingService.get_player_bookings(
         player_id=player.id,
-        booking_date=booking_date,
-        start_time=start_time,
-        end_time=end_time,
-        status='pending',
-        notes=notes
+        limit=50,
+        status_filter=request.args.get('status')
     )
     
-    db.session.add(booking)
-    db.session.commit()
+    bookings = result.get('bookings', []) if result['success'] else []
     
-    flash('Booking request submitted successfully!', 'success')
-    return redirect(url_for('player.my_calendar'))
+    return render_template('player/my_bookings.html',
+                         bookings=bookings,
+                         player=player)
+
+@player_bp.route('/cancel-booking/<int:booking_id>', methods=['POST'])
+@login_required
+@player_required
+def cancel_booking(booking_id):
+    """Cancel booking - CLEANED VERSION"""
+    user_id = session['user_id']
+    reason = request.form.get('reason', 'Cancelled by player')
+    
+    # Delegate to service
+    result = BookingService.update_booking_status(
+        booking_id=booking_id,
+        new_status='cancelled',
+        reason=reason,
+        user_id=user_id,
+        user_type='player'
+    )
+    
+    if result['success']:
+        flash(result['message'], 'success')
+    else:
+        flash(result['error'], 'error')
+    
+    return redirect(url_for('player.my_bookings'))
 
 @player_bp.route('/my-calendar')
 @login_required
 @player_required
 def my_calendar():
+    """Player calendar view - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    bookings = Booking.query.filter_by(player_id=player.id).order_by(
-        Booking.booking_date.desc(),
-        Booking.start_time.desc()
-    ).limit(50).all()
+    if not player:
+        # Handle case where player doesn't exist
+        return render_template('player/my_calendar.html',
+                             player=None,
+                             bookings=[],
+                             booking_groups={'confirmed': [], 'pending': [], 'cancelled': []},
+                             bookings_json='[]')
     
+    # Get actual booking objects for template (template needs object attributes)
+    # Get recent and upcoming bookings (last 30 days + next 90 days)
+    start_date = datetime.now() - timedelta(days=30)
+    end_date = datetime.now() + timedelta(days=90)
+    
+    bookings = Booking.query.join(Court).options(joinedload(Booking.court)).filter(
+        Booking.player_id == player.id,
+        Booking.booking_date.between(start_date.date(), end_date.date())
+    ).order_by(Booking.booking_date.desc(), Booking.start_time.desc()).all()
+    
+    # Group bookings by status for stats
     booking_groups = {
         'confirmed': [b for b in bookings if b.status == 'confirmed'],
         'pending': [b for b in bookings if b.status == 'pending'],
-        'cancelled': [b for b in bookings if b.status == 'cancelled'],
-        'rejected': [b for b in bookings if b.status == 'rejected']
+        'cancelled': [b for b in bookings if b.status == 'cancelled']
     }
     
-    # תקן JSON
-    bookings_json = []
-    for booking in bookings:
-        booking_data = {
-            'id': booking.id,
-            'booking_date': booking.booking_date.strftime('%Y-%m-%d'),
-            'start_time': booking.start_time.strftime('%H:%M'),
-            'end_time': booking.end_time.strftime('%H:%M'),
-            'status': booking.status,
-            'notes': booking.notes or '',
-            'total_cost': float(booking.total_cost) if booking.total_cost else 0,
-            'court': {
-                'id': booking.court.id,
-                'name': booking.court.name,
-                'location': booking.court.location
-            }
-        }
-        bookings_json.append(booking_data)
+    # Prepare clean JSON data for JavaScript (with error handling)
+    bookings_json_data = []
+    for b in bookings:
+        try:
+            bookings_json_data.append({
+                'id': b.id,
+                'booking_date': b.booking_date.isoformat(),
+                'start_time': b.start_time.strftime('%H:%M'),
+                'end_time': b.end_time.strftime('%H:%M'),
+                'status': b.status,
+                'court': {
+                    'id': b.court.id if b.court else 0,
+                    'name': b.court.name if b.court else 'Unknown Court',
+                    'location': b.court.location if b.court else 'Unknown Location'
+                },
+                'total_cost': float(b.total_cost or b.calculate_cost())
+            })
+        except Exception as e:
+            # Skip problematic bookings but log the issue
+            print(f"Error processing booking {b.id}: {e}")
+            continue
     
-    import json
-    print(f"DEBUG: Found {len(bookings)} bookings")  # Debug
-    # בפונקציה my_calendar, החלף את הסוף עם:
-    
-    print(f"DEBUG: Found {len(bookings)} bookings")  # Debug line שכבר קיים
-    print(f"DEBUG: JSON data: {bookings_json}")  # הוסף שורה זו
+    bookings_json = json.dumps(bookings_json_data)
     
     return render_template('player/my_calendar.html',
                          player=player,
                          bookings=bookings,
                          booking_groups=booking_groups,
-                         bookings_json=json.dumps(bookings_json))
+                         bookings_json=bookings_json)
 
-
-@player_bp.route('/messages')
+@player_bp.route('/find-matches')
 @login_required
 @player_required
-def messages():
-    """View and manage messages"""
-    user_id = session['user_id']
-    
-    # Get all conversations (grouped by other participant)
-    conversations = db.session.query(
-        Message.sender_id,
-        Message.receiver_id,
-        db.func.max(Message.created_at).label('last_message_time')
-    ).filter(
-        db.or_(Message.sender_id == user_id, Message.receiver_id == user_id)
-    ).group_by(
-        db.case(
-            [(Message.sender_id == user_id, Message.receiver_id)],
-            else_=Message.sender_id
-        )
-    ).order_by(db.desc('last_message_time')).all()
-    
-    # Get full conversation details
-    conversation_list = []
-    for conv in conversations:
-        other_user_id = conv.sender_id if conv.receiver_id == user_id else conv.receiver_id
-        other_user = User.query.get(other_user_id)
-        
-        # Get last message
-        last_message = Message.query.filter(
-            db.or_(
-                db.and_(Message.sender_id == user_id, Message.receiver_id == other_user_id),
-                db.and_(Message.sender_id == other_user_id, Message.receiver_id == user_id)
-            )
-        ).order_by(Message.created_at.desc()).first()
-        
-        # Count unread messages
-        unread_count = Message.query.filter_by(
-            sender_id=other_user_id,
-            receiver_id=user_id,
-            is_read=False
-        ).count()
-        
-        conversation_list.append({
-            'other_user': other_user,
-            'last_message': last_message,
-            'unread_count': unread_count
-        })
-    
-    return render_template('player/messages.html',
-                         conversations=conversation_list)
-
-@player_bp.route('/chat/<int:other_user_id>')
-@login_required
-@player_required
-def chat(other_user_id):
-    """Chat interface with specific user"""
-    user_id = session['user_id']
-    other_user = User.query.get_or_404(other_user_id)
-    
-    # Get chat history
-    messages = Message.query.filter(
-        db.or_(
-            db.and_(Message.sender_id == user_id, Message.receiver_id == other_user_id),
-            db.and_(Message.sender_id == other_user_id, Message.receiver_id == user_id)
-        )
-    ).order_by(Message.created_at.asc()).all()
-    
-    # Mark messages as read
-    Message.query.filter_by(
-        sender_id=other_user_id,
-        receiver_id=user_id,
-        is_read=False
-    ).update({'is_read': True})
-    db.session.commit()
-    
-    return render_template('player/chat.html',
-                         other_user=other_user,
-                         messages=messages)
-
-@player_bp.route('/send-message', methods=['POST'])
-@login_required
-@player_required
-def send_message():
-    """Send a message to another user"""
-    user_id = session['user_id']
-    
-    # Handle both JSON and form data
-    if request.is_json:
-        data = request.get_json()
-        receiver_id = data.get('receiver_id')
-        content = data.get('content', '').strip()
-    else:
-        receiver_id = request.form.get('receiver_id', type=int)
-        content = request.form.get('content', '').strip()
-    
-    if not receiver_id or not content:
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Missing required fields'})
-        flash('Missing required fields', 'error')
-        return redirect(url_for('player.messages'))
-    
-    # Validate receiver exists
-    receiver = User.query.get(receiver_id)
-    if not receiver:
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Recipient not found'})
-        flash('Recipient not found', 'error')
-        return redirect(url_for('player.messages'))
-    
-    # Create message
-    message = Message(
-        sender_id=user_id,
-        receiver_id=receiver_id,
-        content=content
-    )
-    
-    try:
-        db.session.add(message)
-        db.session.commit()
-        
-        if request.is_json:
-            return jsonify({
-                'success': True,
-                'message': {
-                    'id': message.id,
-                    'content': message.content,
-                    'created_at': message.created_at.isoformat(),
-                    'sender_name': session.get('user_name', 'Unknown')
-                }
-            })
-        else:
-            flash('Message sent successfully!', 'success')
-            return redirect(url_for('player.chat', other_user_id=receiver_id))
-            
-    except Exception as e:
-        db.session.rollback()
-        if request.is_json:
-            return jsonify({'success': False, 'error': 'Failed to send message'})
-        flash('Failed to send message', 'error')
-        return redirect(url_for('player.messages'))
-
-@player_bp.route('/profile/edit', methods=['GET', 'POST'])
-@login_required
-@player_required
-def edit_profile():
-    """Edit player profile"""
+def find_matches():
+    """Find compatible players - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
-    user = User.query.get(user_id)
     
-    if request.method == 'POST':
-        # Update player information
-        player.skill_level = request.form.get('skill_level', player.skill_level)
-        player.preferred_location = request.form.get('preferred_location', player.preferred_location)
-        player.availability = request.form.get('availability', player.availability)
-        player.bio = request.form.get('bio', player.bio)
-        
-        # Update user information
-        user.full_name = request.form.get('full_name', user.full_name)
-        user.phone_number = request.form.get('phone_number', user.phone_number)
-        
-        db.session.commit()
-        flash('Profile updated successfully!', 'success')
-        return redirect(url_for('player.dashboard'))
+    # Get matches using service
+    matches = MatchingEngine.find_matches(
+        player_id=player.id,
+        skill_level=request.args.get('skill_level'),
+        location=request.args.get('location'),
+        limit=request.args.get('limit', 10, type=int)
+    )
     
-    return render_template('player/edit_profile.html',
-                         player=player,
-                         user=user)
+    return render_template('player/find_matches.html',
+                         matches=matches,
+                         player=player)
 
 @player_bp.route('/send-match-request', methods=['POST'])
 @login_required
 @player_required
 def send_match_request():
-    """Send a match request to another player"""
+    """Send match request to another player - CLEANED VERSION"""
     user_id = session['user_id']
-    data = request.get_json()
-    
-    if not data:
-        return jsonify({'success': False, 'error': 'No data provided'})
-    
-    target_player_id = data.get('player_id')
-    custom_message = data.get('message', '')
+    target_player_id = request.form.get('target_player_id', type=int)
+    message_content = request.form.get('message', '').strip()
     
     if not target_player_id:
-        return jsonify({'success': False, 'error': 'Player ID is required'})
+        return jsonify({'success': False, 'error': 'Target player required'}), 400
     
-    # Validate target player exists
+    # Get target user
     target_player = Player.query.get(target_player_id)
     if not target_player:
-        return jsonify({'success': False, 'error': 'Player not found'})
+        return jsonify({'success': False, 'error': 'Player not found'}), 404
     
-    target_user = target_player.user
-    sender = User.query.get(user_id)
+    # Create default message if none provided
+    if not message_content:
+        user = User.query.get(user_id)
+        message_content = f"Hi! I'm {user.full_name} and I'd like to play tennis with you. Are you available for a match?"
     
-    # Validate using business rules
-    validation = RuleEngine.validate_player_matching(user_id, target_player_id)
-    if not validation['valid']:
-        return jsonify({'success': False, 'error': validation['reason']})
-    
-    # Create match request message
-    if custom_message:
-        content = custom_message
-    else:
-        content = f"Hi {target_user.full_name}! I'd like to play tennis with you. Are you available for a match?"
-    
-    # Create the message
+    # Create message
     message = Message(
         sender_id=user_id,
-        receiver_id=target_user.id,
-        content=content
+        receiver_id=target_player.user_id,
+        content=message_content,
+        message_type='match_request'
     )
     
     try:
@@ -494,113 +257,144 @@ def send_match_request():
         
         return jsonify({
             'success': True,
-            'message': f'Match request sent to {target_user.full_name}!',
+            'message': f'Match request sent to {target_player.user.full_name}!',
             'message_id': message.id
         })
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': 'Failed to send match request'})
+        return jsonify({'success': False, 'error': 'Failed to send match request'}), 500
+
+@player_bp.route('/messages')
+@login_required
+@player_required
+def messages():
+    """View messages - CLEANED VERSION"""
+    user_id = session['user_id']
+    
+    # Get messages using simple query - no business logic
+    messages_received = Message.query.filter_by(receiver_id=user_id).order_by(
+        Message.created_at.desc()
+    ).limit(50).all()
+    
+    messages_sent = Message.query.filter_by(sender_id=user_id).order_by(
+        Message.created_at.desc()
+    ).limit(50).all()
+    
+    return render_template('player/messages.html',
+                         messages_received=messages_received,
+                         messages_sent=messages_sent)
+
+@player_bp.route('/profile')
+@login_required
+@player_required
+def profile():
+    """View/Edit profile - CLEANED VERSION"""
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    player = Player.query.filter_by(user_id=user_id).first()
+    
+    return render_template('player/profile.html', user=user, player=player)
+
+@player_bp.route('/update-profile', methods=['POST'])
+@login_required
+@player_required
+def update_profile():
+    """Update profile - CLEANED VERSION"""
+    user_id = session['user_id']
+    user = User.query.get(user_id)
+    player = Player.query.filter_by(user_id=user_id).first()
+    
+    # Update basic user info
+    user.full_name = request.form.get('full_name', '').strip()
+    user.phone_number = request.form.get('phone_number', '').strip()
+    
+    # Update player-specific info
+    player.skill_level = request.form.get('skill_level')
+    player.preferred_location = request.form.get('preferred_location', '').strip()
+    player.bio = request.form.get('bio', '').strip()
+    
+    try:
+        db.session.commit()
+        flash('Profile updated successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating profile', 'error')
+    
+    return redirect(url_for('player.profile'))
+
+@player_bp.route('/get-court-availability')
+@login_required
+@player_required
+def get_court_availability():
+    """Get court availability via AJAX - CLEANED VERSION"""
+    court_id = request.args.get('court_id', type=int)
+    date = request.args.get('date')
+    
+    if not court_id or not date:
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+    
+    # Delegate to service
+    result = BookingService.get_court_availability(
+        court_id=court_id,
+        check_date=date,
+        days_ahead=1
+    )
+    
+    return jsonify(result)
+
+@player_bp.route('/calculate-cost')
+@login_required
+@player_required
+def calculate_cost():
+    """Calculate booking cost via AJAX - CLEANED VERSION"""
+    court_id = request.args.get('court_id', type=int)
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    
+    if not all([court_id, start_time, end_time]):
+        return jsonify({'success': False, 'error': 'Missing parameters'}), 400
+    
+    # Delegate to service
+    result = BookingService.calculate_booking_cost(court_id, start_time, end_time)
+    
+    return jsonify(result)
+
+@player_bp.route('/search-courts')
+@login_required
+@player_required
+def search_courts():
+    """Search courts with filters - CLEANED VERSION"""
+    user_id = session['user_id']
+    player = Player.query.filter_by(user_id=user_id).first()
+    
+    # Get search parameters
+    search_params = {
+        'location': request.args.get('location'),
+        'court_type': request.args.get('court_type'),
+        'max_distance': request.args.get('max_distance', 25, type=int),
+        'max_price': request.args.get('max_price', type=int),
+        'date': request.args.get('date'),
+        'time': request.args.get('time')
+    }
+    
+    # Use matching engine for search
+    courts = MatchingEngine.recommend_courts(
+        player_id=player.id,
+        **{k: v for k, v in search_params.items() if v is not None}
+    )
+    
+    return render_template('player/search_results.html',
+                         courts=courts,
+                         search_params=search_params)
 
 @player_bp.route('/settings')
 @login_required
 @player_required
 def settings():
-    """Player settings page"""
+    """Player settings page - CLEANED VERSION"""
     user_id = session['user_id']
     user = User.query.get(user_id)
     player = Player.query.filter_by(user_id=user_id).first()
     
     return render_template('player/settings.html', user=user, player=player)
-
-
-@player_bp.route('/submit-booking', methods=['POST'])
-@login_required
-@player_required
-def submit_booking():
-    """Submit booking request with JSON response"""
-    print("=== SUBMIT BOOKING START ===")  # DEBUG
-    
-    try:
-        user_id = session['user_id']
-        player = Player.query.filter_by(user_id=user_id).first()
-        print(f"Player found: {player.id}")  # DEBUG
-        
-        # Get form data
-        court_id = request.form.get('court_id', type=int)
-        booking_date = request.form.get('booking_date')
-        start_time = request.form.get('start_time')
-        end_time = request.form.get('end_time')
-        notes = request.form.get('notes', '').strip()
-        
-        print(f"Form data: court_id={court_id}, date={booking_date}, start={start_time}, end={end_time}")  # DEBUG
-        
-        # Validate required fields
-        if not all([court_id, booking_date, start_time, end_time]):
-            print("Missing required fields")  # DEBUG
-            return jsonify({'success': False, 'error': 'All fields are required'})
-        
-        # Validate court exists
-        court = Court.query.get(court_id)
-        if not court or not court.is_active:
-            print(f"Court not found or inactive: {court_id}")  # DEBUG
-            return jsonify({'success': False, 'error': 'Court not found or unavailable'})
-        
-        print(f"Court found: {court.name}")  # DEBUG
-        
-        # SKIP VALIDATION FOR NOW - MIGHT BE THE ISSUE
-        # validation_result = RuleEngine.validate_booking(...)
-        
-        # Calculate duration and cost
-        from datetime import datetime
-        start_dt = datetime.strptime(start_time, '%H:%M')
-        end_dt = datetime.strptime(end_time, '%H:%M')
-        duration_hours = (end_dt - start_dt).total_seconds() / 3600
-        total_cost = duration_hours * court.hourly_rate
-        
-        print(f"Duration: {duration_hours} hours, Cost: {total_cost}")  # DEBUG
-
-        # Create booking - FIX: התאמה למודל הקיים
-        booking = Booking(
-            court_id=court_id,
-            player_id=player.id,
-            booking_date=datetime.strptime(booking_date, '%Y-%m-%d').date(),
-            start_time=datetime.strptime(start_time, '%H:%M').time(),
-            end_time=datetime.strptime(end_time, '%H:%M').time(),
-            notes=notes
-        )
-
-        # Set additional fields after creation (המודל מגדיר אותם כdefault)
-        booking.total_cost = total_cost  # הוסף את העלות אחרי היצירה
-        # booking.status = 'pending'  # זה כבר default במודל
-
-        print(f"Booking created with cost: {booking.total_cost}")  # DEBUG
-
-        db.session.add(booking)
-        db.session.commit()
-
-        
-        print(f"Booking created: {booking.id}")  # DEBUG
-        
-        # SKIP EMAIL FOR NOW - MIGHT CAUSE DELAY
-        # try:
-        #     CloudService.send_booking_approval_notification(booking)
-        # except:
-        #     pass
-        
-        response = {
-            'success': True, 
-            'booking_id': booking.id,
-            'message': 'Booking request submitted successfully!'
-        }
-        
-        print(f"Returning response: {response}")  # DEBUG
-        print("=== SUBMIT BOOKING END ===")  # DEBUG
-        
-        return jsonify(response)
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"ERROR in submit_booking: {str(e)}")  # DEBUG
-        print("=== SUBMIT BOOKING ERROR ===")  # DEBUG
-        return jsonify({'success': False, 'error': f'Error: {str(e)}'})

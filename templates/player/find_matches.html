@@ -3,30 +3,7 @@
 {% block title %}Find Matches - TennisMatchUp{% endblock %}
 
 {% block extra_head %}
-<style>
-.match-card {
-    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-
-.match-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.compatibility-score {
-    font-size: 1.2rem;
-    font-weight: bold;
-}
-
-.skill-badge {
-    font-size: 0.8rem;
-}
-
-.filter-card {
-    background: #f8f9fa;
-    border: 1px solid #dee2e6;
-}
-</style>
+<link href="{{ url_for('static', filename='css/find-matches.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block content %}

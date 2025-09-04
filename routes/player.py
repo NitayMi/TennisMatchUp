@@ -9,6 +9,7 @@ from models.player import Player
 from models.court import Court, Booking
 from models.message import Message
 from models.database import db
+from sqlalchemy.orm import joinedload
 from utils.decorators import login_required, player_required
 from services.booking_service import BookingService
 from services.matching_engine import MatchingEngine
@@ -144,12 +145,61 @@ def my_calendar():
     """Player calendar view - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
-
-    # Calendar data is now loaded via AJAX through API
-    # No business logic in controller
+    
+    if not player:
+        # Handle case where player doesn't exist
+        return render_template('player/my_calendar.html',
+                             player=None,
+                             bookings=[],
+                             booking_groups={'confirmed': [], 'pending': [], 'cancelled': []},
+                             bookings_json='[]')
+    
+    # Get actual booking objects for template (template needs object attributes)
+    # Get recent and upcoming bookings (last 30 days + next 90 days)
+    start_date = datetime.now() - timedelta(days=30)
+    end_date = datetime.now() + timedelta(days=90)
+    
+    bookings = Booking.query.join(Court).options(joinedload(Booking.court)).filter(
+        Booking.player_id == player.id,
+        Booking.booking_date.between(start_date.date(), end_date.date())
+    ).order_by(Booking.booking_date.desc(), Booking.start_time.desc()).all()
+    
+    # Group bookings by status for stats
+    booking_groups = {
+        'confirmed': [b for b in bookings if b.status == 'confirmed'],
+        'pending': [b for b in bookings if b.status == 'pending'],
+        'cancelled': [b for b in bookings if b.status == 'cancelled']
+    }
+    
+    # Prepare clean JSON data for JavaScript (with error handling)
+    bookings_json_data = []
+    for b in bookings:
+        try:
+            bookings_json_data.append({
+                'id': b.id,
+                'booking_date': b.booking_date.isoformat(),
+                'start_time': b.start_time.strftime('%H:%M'),
+                'end_time': b.end_time.strftime('%H:%M'),
+                'status': b.status,
+                'court': {
+                    'id': b.court.id if b.court else 0,
+                    'name': b.court.name if b.court else 'Unknown Court',
+                    'location': b.court.location if b.court else 'Unknown Location'
+                },
+                'total_cost': float(b.total_cost or b.calculate_cost())
+            })
+        except Exception as e:
+            # Skip problematic bookings but log the issue
+            print(f"Error processing booking {b.id}: {e}")
+            continue
+    
+    bookings_json = json.dumps(bookings_json_data)
+    
     return render_template('player/my_calendar.html',
-                            player=player,
-                            booking_groups={})
+                         player=player,
+                         bookings=bookings,
+                         booking_groups=booking_groups,
+                         bookings_json=bookings_json)
 
 @player_bp.route('/find-matches')
 @login_required

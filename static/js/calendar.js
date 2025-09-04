@@ -134,21 +134,6 @@ class TennisCalendar {
 
         return dayElement;
     }
-// -------------------
-// selectDate(day) {
-//     console.log('Day clicked:', day);
-    
-//     if (day.hasBookings) {
-//         this.showBookingDetails(day);
-//     } else if (day.isCurrentMonth) {
-//         // פשוט נעביר לעמוד עם התאריך
-//         const dateStr = this.formatDateKey(day.date);
-//         console.log('Navigating to book-court with date:', dateStr);
-//         window.location.href = `/player/book-court?date=${dateStr}`;
-//     }
-// }
-
-// -----------------------עד כאן ישן
 selectDate(day) {
     console.log('Day clicked:', day);
     
@@ -156,139 +141,96 @@ selectDate(day) {
         // Show booking details for days with existing bookings
         this.showBookingDetails(day);
     } else if (day.isCurrentMonth) {
-        // Show booking modal for empty days
-        this.showBookingModal(day);
+        // Navigate to booking page with pre-selected date (MVC compliant)
+        const dateStr = this.formatDateKey(day.date);
+        this.showQuickBookingModal(day.date, dateStr);
     }
 }
 
-// הוסף פונקציה חדשה:
-showBookingModal(day) {
-    const dateStr = this.formatDateKey(day.date);
-    const formattedDate = day.date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
+showQuickBookingModal(date, dateStr) {
+    // Use existing modal from template (MVC compliant)
+    const modal = document.getElementById('quickBookingModal');
+    const modalDateText = document.getElementById('modalDateText');
+    const modalBookingLink = document.getElementById('modalBookingLink');
     
-    // Create modal HTML
-    const modalHtml = `
-        <div class="modal fade" id="quickBookingModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-xl">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">
-                            <i class="fas fa-calendar-plus me-2"></i>
-                            Book Court for ${formattedDate}
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body p-0">
-                        <div id="bookingFrameContainer" style="height: 70vh;">
-                            <div class="d-flex justify-content-center align-items-center h-100">
-                                <div class="spinner-border text-tennis" role="status">
-                                    <span class="visually-hidden">Loading...</span>
+    if (modal && modalDateText && modalBookingLink) {
+        // Set date text
+        const formattedDate = date.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        modalDateText.textContent = `Selected date: ${formattedDate}`;
+        
+        // Set booking link
+        modalBookingLink.href = `/player/book-court?date=${dateStr}`;
+        
+        // Show modal
+        const bootstrapModal = new bootstrap.Modal(modal);
+        bootstrapModal.show();
+    } else {
+        // Fallback: direct navigation
+        window.location.href = `/player/book-court?date=${dateStr}`;
+    }
+}
+
+    showBookingDetails(day) {
+        // Use existing booking details modal (MVC compliant)
+        const modal = document.getElementById('bookingModal');
+        const modalContent = document.getElementById('modalContent');
+        
+        if (modal && modalContent) {
+            // Create clean booking details HTML
+            const formattedDate = day.date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric'
+            });
+            
+            let contentHtml = `<h6 class="mb-3">${formattedDate}</h6>`;
+            
+            day.bookings.forEach(booking => {
+                const statusColor = this.getStatusColor(booking.status);
+                contentHtml += `
+                    <div class="card mb-2">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="card-title mb-1">${booking.court.name}</h6>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            ${booking.start_time} - ${booking.end_time}
+                                        </small>
+                                        <br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-map-marker-alt me-1"></i>
+                                            ${booking.court.location || 'Location not specified'}
+                                        </small>
+                                    </p>
                                 </div>
-                                <span class="ms-2">Loading booking options...</span>
+                                <span class="badge bg-${statusColor}">${booking.status}</span>
                             </div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <a href="/player/book-court?date=${dateStr}" class="btn btn-tennis" target="_blank">
-                            <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Remove existing modal if any
-    const existingModal = document.getElementById('quickBookingModal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Add modal to body
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('quickBookingModal'));
-    modal.show();
-    
-    // Load content after modal is shown
-    setTimeout(() => {
-        this.loadBookingContent(dateStr);
-    }, 300);
-}
-
-// הוסף פונקציה נוספת:
-loadBookingContent(dateStr) {
-    const container = document.getElementById('bookingFrameContainer');
-    if (!container) return;
-    
-    // Load the booking page content via fetch
-    fetch(`/player/book-court?date=${dateStr}`)
-        .then(response => response.text())
-        .then(html => {
-            // Extract main content from the response
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-            const mainContent = doc.querySelector('main') || doc.querySelector('.container');
-            
-            if (mainContent) {
-                container.innerHTML = mainContent.innerHTML;
-                
-                // Re-initialize any JavaScript for the loaded content
-                this.initializeBookingForm();
-            } else {
-                container.innerHTML = `
-                    <div class="text-center p-4">
-                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                        <h5>Unable to load booking form</h5>
-                        <p>Please use the "Open in New Tab" button instead.</p>
-                    </div>
                 `;
-            }
-        })
-        .catch(error => {
-            console.error('Error loading booking content:', error);
-            container.innerHTML = `
-                <div class="text-center p-4">
-                    <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
-                    <h5>Error loading booking form</h5>
-                    <p>Please try opening in a new tab.</p>
-                </div>
-            `;
-        });
-}
-
-// הוסף פונקציה אחרונה:
-initializeBookingForm() {
-    // Re-initialize any JavaScript needed for the booking form
-    const bookingButtons = document.querySelectorAll('.book-court-btn');
-    bookingButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            // Handle booking within the modal
-            const courtId = e.target.dataset.courtId;
-            const courtName = e.target.dataset.courtName;
-            console.log('Court selected:', courtId, courtName);
-            // Add your booking logic here
-        });
-    });
-}
-
-// --------------עד כאן חדש לא מופרד MVC
-
-    showBookingDetails(day) {
-        // Simple alert for now - can enhance later
-        let details = `${day.date.toDateString()}\n\n`;
-        day.bookings.forEach(booking => {
-            details += `${booking.court.name}\n${booking.start_time} - ${booking.end_time}\nStatus: ${booking.status}\n\n`;
-        });
-        alert(details);
+            });
+            
+            modalContent.innerHTML = contentHtml;
+            
+            // Show modal
+            const bootstrapModal = new bootstrap.Modal(modal);
+            bootstrapModal.show();
+        } else {
+            // Fallback to alert if modal not found
+            let details = `${day.date.toDateString()}\n\n`;
+            day.bookings.forEach(booking => {
+                details += `${booking.court.name}\n${booking.start_time} - ${booking.end_time}\nStatus: ${booking.status}\n\n`;
+            });
+            alert(details);
+        }
     }
 
     navigateMonth(direction) {

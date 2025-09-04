@@ -89,7 +89,7 @@
                         <div class="booking-item mb-3 p-2 border rounded">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
-                                    <h6 class="mb-1 text-primary">{{ booking.court.name }}</h6>
+                                    <h6 class="mb-1 text-primary">{{ booking.court.name if booking.court else 'Unknown Court' }}</h6>
                                     <small class="text-muted d-block">
                                         <i class="fas fa-calendar me-1"></i>
                                         {{ booking.booking_date.strftime('%a, %b %d') }}
@@ -100,7 +100,7 @@
                                     </small>
                                     <small class="text-muted d-block">
                                         <i class="fas fa-map-marker-alt me-1"></i>
-                                        {{ booking.court.location }}
+                                        {{ booking.court.location if booking.court else 'Unknown Location' }}
                                     </small>
                                 </div>
                                 <div class="text-end">
@@ -211,9 +211,9 @@
 
 {% block extra_scripts %}
 <script>
-// Calendar data will be loaded via AJAX through API endpoints
-window.currentPlayer = '{{ player.id }}';
-window.apiBaseUrl = '/api';
+// Pass booking data to JavaScript (MVC compliant - no business logic)
+window.bookingsData = {{ bookings_json|safe }};
+window.currentPlayer = '{{ player.id if player else 0 }}';
 </script>
-<script src="{{ url_for('static', filename='js/calendar-data.js') }}"></script>
+<script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

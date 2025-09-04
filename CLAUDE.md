@@ -516,4 +516,7 @@ Calendar appears broken - either not showing bookings properly or click events n
 
 Fix the calendar to restore the beautiful, functional interface while maintaining clean MVC architecture!
 
+<<<<<<< Updated upstream
 ![alt text](image.png)
+=======
+>>>>>>> Stashed changes

@@ -1,8 +1,3 @@
-
-/**
- * Tennis Calendar JavaScript Module
- */
-
 /**
  * Tennis Calendar JavaScript Module
  */

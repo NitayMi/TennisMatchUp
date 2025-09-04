@@ -1,3 +1,8 @@
+"""
+Admin Routes for TennisMatchUp
+CLEANED VERSION - All business logic moved to Services
+Controllers only handle HTTP concerns
+"""
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
 from models.user import User
 from models.player import Player
@@ -5,6 +10,7 @@ from models.court import Court, Booking
 from models.message import Message
 from models.database import db
 from utils.decorators import login_required, admin_required
+from services.report_service import ReportService
 from services.rule_engine import RuleEngine
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -15,81 +21,33 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 @login_required
 @admin_required
 def dashboard():
-    """Admin dashboard with system overview"""
+    """Admin dashboard - CLEANED VERSION"""
     
-    # Get overall system statistics
-    total_users = User.query.count()
-    total_players = Player.query.count()
-    total_owners = User.query.filter_by(user_type='owner').count()
-    total_courts = Court.query.count()
-    active_courts = Court.query.filter_by(is_active=True).count()
+    # Get dashboard stats using service
+    stats_result = ReportService.generate_admin_dashboard_stats()
     
-    # Recent registrations (last 7 days)
-    week_ago = datetime.now() - timedelta(days=7)
-    recent_users = User.query.filter(User.created_at >= week_ago).count()
-    
-    # Booking statistics
-    total_bookings = Booking.query.count()
-    confirmed_bookings = Booking.query.filter_by(status='confirmed').count()
-    pending_bookings = Booking.query.filter_by(status='pending').count()
-    cancelled_bookings = Booking.query.filter_by(status='cancelled').count()
-    
-    # Revenue statistics (last 30 days)
-    month_ago = datetime.now() - timedelta(days=30)
-    monthly_revenue = db.session.query(
-        func.sum(Court.hourly_rate * 
-                func.extract('hour', Booking.end_time - Booking.start_time))
-    ).join(Booking).filter(
-        Booking.status == 'confirmed',
-        Booking.booking_date >= month_ago.date()
-    ).scalar() or 0
-    
-    # Most active players
-    top_players = db.session.query(
-        Player.id,
-        User.full_name,
-        func.count(Booking.id).label('booking_count')
-    ).join(User).outerjoin(Booking).group_by(
-        Player.id, User.full_name
-    ).order_by(func.count(Booking.id).desc()).limit(5).all()
-    
-    # Most popular courts
-    top_courts = db.session.query(
-        Court.id,
-        Court.name,
-        Court.location,
-        func.count(Booking.id).label('booking_count')
-    ).outerjoin(Booking).group_by(
-        Court.id, Court.name, Court.location
-    ).order_by(func.count(Booking.id).desc()).limit(5).all()
-    
-    # Recent activity
-    recent_bookings = Booking.query.order_by(
-        Booking.created_at.desc()
-    ).limit(10).all()
-    
-    stats = {
-        'users': {
-            'total': total_users,
-            'players': total_players,
-            'owners': total_owners,
-            'recent': recent_users
-        },
-        'courts': {
-            'total': total_courts,
-            'active': active_courts,
-            'inactive': total_courts - active_courts
-        },
-        'bookings': {
-            'total': total_bookings,
-            'confirmed': confirmed_bookings,
-            'pending': pending_bookings,
-            'cancelled': cancelled_bookings
-        },
-        'revenue': {
-            'monthly': monthly_revenue
-        }
-    }
+    if stats_result['success']:
+        stats = stats_result['stats']
+        
+        # Get top performers using service
+        top_performers = ReportService.get_top_performers(period_days=30, limit=5)
+        
+        if top_performers['success']:
+            top_players = top_performers['top_players']
+            top_courts = top_performers['top_courts']
+        else:
+            top_players = []
+            top_courts = []
+            
+        # Recent activity (simple query - no business logic)
+        recent_bookings = Booking.query.order_by(
+            Booking.created_at.desc()
+        ).limit(10).all()
+    else:
+        stats = {}
+        top_players = []
+        top_courts = []
+        recent_bookings = []
     
     return render_template('admin/dashboard.html',
                          stats=stats,
@@ -269,89 +227,31 @@ def stop_impersonation():
 @login_required
 @admin_required
 def system_reports():
-    """View comprehensive system reports"""
+    """View comprehensive system reports - CLEANED VERSION"""
     
     # Date range for reports
     days_back = request.args.get('days', 30, type=int)
-    end_date = datetime.now().date()
-    start_date = end_date - timedelta(days=days_back)
     
-    # User registration trends
-    registration_data = db.session.query(
-        func.date(User.created_at).label('date'),
-        func.count(User.id).label('count'),
-        User.user_type
-    ).filter(
-        User.created_at >= start_date
-    ).group_by(
-        func.date(User.created_at), 
-        User.user_type
-    ).order_by('date').all()
+    # Get performance metrics using service
+    performance_result = ReportService.system_performance_metrics(days_back)
     
-    # Booking trends
-    booking_data = db.session.query(
-        func.date(Booking.created_at).label('date'),
-        func.count(Booking.id).label('count'),
-        Booking.status
-    ).filter(
-        Booking.created_at >= start_date
-    ).group_by(
-        func.date(Booking.created_at),
-        Booking.status
-    ).order_by('date').all()
-    
-    # Revenue trends
-    revenue_data = db.session.query(
-        func.date(Booking.booking_date).label('date'),
-        func.sum(Court.hourly_rate * 
-                func.extract('hour', Booking.end_time - Booking.start_time)).label('revenue')
-    ).join(Court).filter(
-        Booking.status == 'confirmed',
-        Booking.booking_date >= start_date
-    ).group_by(func.date(Booking.booking_date)).order_by('date').all()
-    
-    # Court utilization
-    court_utilization = db.session.query(
-        Court.id,
-        Court.name,
-        Court.location,
-        func.count(Booking.id).label('total_bookings'),
-        func.count(func.nullif(Booking.status != 'confirmed', True)).label('confirmed_bookings')
-    ).outerjoin(Booking).filter(
-        db.or_(Booking.booking_date >= start_date, Booking.id.is_(None))
-    ).group_by(Court.id, Court.name, Court.location).all()
-    
-    # Popular locations
-    location_stats = db.session.query(
-        Court.location,
-        func.count(func.distinct(Court.id)).label('court_count'),
-        func.count(Booking.id).label('booking_count')
-    ).outerjoin(Booking).filter(
-        db.or_(Booking.booking_date >= start_date, Booking.id.is_(None))
-    ).group_by(Court.location).order_by(
-        func.count(Booking.id).desc()
-    ).all()
-    
-    # Problem areas (high cancellation rates)
-    problem_courts = db.session.query(
-        Court.id,
-        Court.name,
-        Court.owner_id,
-        User.full_name.label('owner_name'),
-        func.count(Booking.id).label('total_bookings'),
-        func.count(func.nullif(Booking.status != 'cancelled', True)).label('cancelled_bookings'),
-        (func.count(func.nullif(Booking.status != 'cancelled', True)) * 100.0 / 
-         func.nullif(func.count(Booking.id), 0)).label('cancellation_rate')
-    ).join(User, Court.owner_id == User.id).outerjoin(Booking).filter(
-        Booking.booking_date >= start_date
-    ).group_by(
-        Court.id, Court.name, Court.owner_id, User.full_name
-    ).having(
-        func.count(Booking.id) > 5  # Only courts with significant bookings
-    ).order_by(
-        (func.count(func.nullif(Booking.status != 'cancelled', True)) * 100.0 / 
-         func.nullif(func.count(Booking.id), 0)).desc()
-    ).limit(10).all()
+    if performance_result['success']:
+        metrics = performance_result['metrics']
+        registration_data = metrics.get('registration_trends', {}).get('daily_data', [])
+        booking_data = metrics.get('booking_trends', {}).get('daily_data', [])
+        revenue_data = metrics.get('revenue_trends', {}).get('daily_data', [])
+        court_utilization = metrics.get('court_performance', [])
+        location_stats = metrics.get('popular_locations', [])
+        problem_courts = metrics.get('problem_areas', [])
+        date_range = metrics.get('period', {})
+    else:
+        registration_data = []
+        booking_data = []
+        revenue_data = []
+        court_utilization = []
+        location_stats = []
+        problem_courts = []
+        date_range = {'days': days_back}
     
     return render_template('admin/system_reports.html',
                          registration_data=registration_data,
@@ -360,11 +260,7 @@ def system_reports():
                          court_utilization=court_utilization,
                          location_stats=location_stats,
                          problem_courts=problem_courts,
-                         date_range={
-                             'start': start_date,
-                             'end': end_date,
-                             'days': days_back
-                         })
+                         date_range=date_range)
 
 @admin_bp.route('/court-management')
 @login_required
@@ -470,29 +366,12 @@ def broadcast_message():
 @login_required
 @admin_required
 def api_stats():
-    """API endpoint for dashboard statistics"""
+    """API endpoint for dashboard statistics - CLEANED VERSION"""
     
-    # Real-time stats for dashboard widgets
-    stats = {
-        'users': {
-            'total': User.query.count(),
-            'active': User.query.filter_by(is_active=True).count(),
-            'online': 0  # Would need session tracking for real online count
-        },
-        'bookings': {
-            'today': Booking.query.filter_by(
-                booking_date=datetime.now().date()
-            ).count(),
-            'pending': Booking.query.filter_by(status='pending').count(),
-            'confirmed_today': Booking.query.filter(
-                Booking.booking_date == datetime.now().date(),
-                Booking.status == 'confirmed'
-            ).count()
-        },
-        'revenue': {
-            'today': 0,  # Would calculate today's confirmed booking revenue
-            'month': 0   # Would calculate current month revenue
-        }
-    }
+    # Get stats using service
+    stats_result = ReportService.generate_admin_dashboard_stats()
     
-    return jsonify(stats)
+    if stats_result['success']:
+        return jsonify(stats_result)
+    else:
+        return jsonify({'success': False, 'error': 'Failed to load statistics'}), 500

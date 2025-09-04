@@ -7,6 +7,128 @@
     overflow: hidden;
 }
 
+/* Weekday Header */
+.weekday-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background-color: var(--tennis-green);
+    color: white;
+}
+
+.weekday-cell {
+    padding: 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.weekday-cell:last-child {
+    border-right: none;
+}
+
+/* Calendar Days */
+.calendar-day {
+    background: white;
+    border: 1px solid #e9ecef;
+    min-height: 120px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.calendar-day:hover {
+    background-color: rgba(var(--tennis-green-rgb, 44, 85, 48), 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-day.today {
+    background-color: rgba(var(--tennis-green-rgb, 44, 85, 48), 0.1);
+    border-color: var(--tennis-green);
+    font-weight: bold;
+}
+
+.calendar-day.today .day-number {
+    color: var(--tennis-green);
+}
+
+.calendar-day.other-month {
+    background-color: #f8f9fa;
+    color: #adb5bd;
+}
+
+.calendar-day.other-month:hover {
+    background-color: #f1f3f4;
+}
+
+.calendar-day.has-bookings {
+    background-color: rgba(var(--tennis-yellow-rgb, 255, 193, 7), 0.05);
+    border-left: 4px solid var(--tennis-yellow);
+}
+
+.day-number {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+/* Booking Indicators */
+.day-bookings {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+}
+
+.booking-dot {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+    border-radius: 3px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.booking-dot.confirmed {
+    background-color: rgba(40, 167, 69, 0.2);
+    color: #155724;
+    border-left: 3px solid #28a745;
+}
+
+.booking-dot.pending {
+    background-color: rgba(255, 193, 7, 0.2);
+    color: #856404;
+    border-left: 3px solid #ffc107;
+}
+
+.booking-dot.cancelled {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #721c24;
+    border-left: 3px solid #dc3545;
+}
+
+.booking-count {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: var(--tennis-green);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
 .calendar-header {
     background: var(--tennis-green);
     color: white;

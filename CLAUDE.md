@@ -442,3 +442,78 @@ heres the analysis you gave me last time:
 
   Your service layer architecture (especially the RuleEngine and MatchingEngine) demonstrates senior-level thinking - now we need to bring the       
   rest of the codebase up to that same standard! 🎾
+
+
+  # 🎾 CALENDAR FIX - Specific Task Instructions
+
+## PREVIOUS ISSUE IDENTIFIED:
+The calendar functionality is broken. Previously it worked perfectly:
+- Displayed calendar grid with dates showing booking indicators
+- Click on date with bookings → opened modal with booking details  
+- Click on empty date → opened booking overlay with pre-filled date
+- Beautiful, functional interface
+
+## CURRENT PROBLEM:
+Calendar appears broken - either not showing bookings properly or click events not working.
+
+## TASK: Fix calendar functionality following EXACT MVC architecture
+
+### FILES TO ANALYZE & FIX:
+1. **static/js/calendar.js** - Main calendar JavaScript logic
+2. **templates/player/my_calendar.html** - Calendar HTML template  
+3. **static/css/calendar.css** - Calendar styling
+4. **routes/player.py** - Calendar route (lines ~202-237)
+
+### REQUIREMENTS - STRICT MVC:
+- Keep JavaScript ONLY in static/js/calendar.js
+- Keep HTML template ONLY in templates/player/my_calendar.html  
+- Keep CSS ONLY in static/css/calendar.css
+- Business logic belongs in services/ (NOT in routes or JavaScript)
+
+### SPECIFIC FUNCTIONALITY TO RESTORE:
+1. **Calendar Grid Display:**
+   - Show month view with proper date cells
+   - Highlight dates that have bookings with colored indicators
+   - Show booking count badges on busy dates
+   - Highlight today's date
+
+2. **Click Events:**
+   - Click on date WITH bookings → Modal showing all bookings for that date
+   - Click on EMPTY date → Booking overlay/modal pre-filled with selected date
+   - Previous/Next month navigation working
+   - Today button working
+
+3. **Modal Functionality:**
+   - Booking details modal should show: court name, time, status, actions
+   - Quick booking modal should pre-fill selected date and show available courts
+   - Modal should close properly and not interfere with calendar
+
+4. **Data Flow:**
+   - Calendar gets booking data from: window.bookingsData (set in template)
+   - Modal booking uses existing booking form logic
+   - All AJAX calls go to proper Flask routes
+
+### DEBUGGING APPROACH:
+1. First examine the existing calendar.js file - identify what's broken
+2. Check if bookingsData is properly passed from template
+3. Verify click event handlers are properly attached
+4. Fix modal functionality
+5. Ensure proper separation (no business logic in JS)
+
+### DO NOT:
+- Mix CSS, HTML, JavaScript in same file
+- Put business logic in JavaScript 
+- Rebuild everything from scratch
+- Change the existing Flask route structure
+- Add business calculations to frontend code
+
+### SUCCESS CRITERIA:
+- Calendar displays properly with booking indicators
+- Click on booked date shows booking details in modal
+- Click on empty date opens booking form with pre-selected date  
+- All functionality works smoothly like it did before
+- Perfect MVC separation maintained
+
+Fix the calendar to restore the beautiful, functional interface while maintaining clean MVC architecture!
+
+![alt text](image.png)

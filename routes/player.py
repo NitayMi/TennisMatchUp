@@ -60,7 +60,8 @@ def book_court():
     return render_template('player/book_court.html',
                          courts=courts,
                          selected_date=booking_date,
-                         player=player)
+                         player=player,
+                         filters={})
 
 @player_bp.route('/submit-booking', methods=['POST'])
 @login_required
@@ -143,10 +144,12 @@ def my_calendar():
     """Player calendar view - CLEANED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
-    
+
     # Calendar data is now loaded via AJAX through API
     # No business logic in controller
-    return render_template('player/my_calendar.html', player=player)
+    return render_template('player/my_calendar.html',
+                            player=player,
+                            booking_groups={})
 
 @player_bp.route('/find-matches')
 @login_required

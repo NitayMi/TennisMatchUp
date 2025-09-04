@@ -111,36 +111,5 @@
     </div>
 </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const userTypeSelect = document.getElementById('user_type');
-    const playerFields = document.getElementById('player_fields');
-    const skillLevel = document.getElementById('skill_level');
-    
-    userTypeSelect.addEventListener('change', function() {
-        if (this.value === 'player') {
-            playerFields.style.display = 'block';
-            skillLevel.required = true;
-        } else {
-            playerFields.style.display = 'none';
-            skillLevel.required = false;
-        }
-    });
-    
-    // Password confirmation validation
-    const password = document.getElementById('password');
-    const confirmPassword = document.getElementById('confirm_password');
-    
-    function validatePassword() {
-        if (password.value !== confirmPassword.value) {
-            confirmPassword.setCustomValidity('Passwords do not match');
-        } else {
-            confirmPassword.setCustomValidity('');
-        }
-    }
-    
-    password.addEventListener('change', validatePassword);
-    confirmPassword.addEventListener('keyup', validatePassword);
-});
-</script>
+<script src="{{ url_for('static', filename='js/auth-forms.js') }}"></script>
 {% endblock %}

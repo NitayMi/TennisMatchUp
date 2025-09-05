@@ -8,6 +8,7 @@ from math import radians, cos, sin, asin, sqrt
 from models.database import db
 import time
 
+
 class GeoService:
     """Geographic service with real coordinate calculation"""
     
@@ -277,3 +278,26 @@ class GeoService:
             return True, f"API working - Tel Aviv coordinates: {test_result}"
         else:
             return False, "API key invalid or service unavailable"
+        
+    @staticmethod
+    def geocode_address(address):
+        """Convert address to coordinates using geocoding service"""
+        # This would use Google Maps API or similar
+        # For now, return mock coordinates
+        return {
+            'address': address,
+            'latitude': 32.0853,  # Tel Aviv coordinates as default
+            'longitude': 34.7818,
+            'formatted_address': address
+        }
+    
+    @staticmethod
+    def calculate_distance(location1, location2):
+        """Calculate distance between two locations"""
+        # This would use Google Distance Matrix API or similar
+        # For now, return mock distance
+        return {
+            'distance_km': 12.5,
+            'duration_minutes': 18,
+            'route_available': True
+        }

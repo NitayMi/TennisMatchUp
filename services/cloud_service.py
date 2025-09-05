@@ -339,29 +339,6 @@ The TennisMatchUp Team
         }
     
     @staticmethod
-    def geocode_address(address):
-        """Convert address to coordinates using geocoding service"""
-        # This would use Google Maps API or similar
-        # For now, return mock coordinates
-        return {
-            'address': address,
-            'latitude': 32.0853,  # Tel Aviv coordinates as default
-            'longitude': 34.7818,
-            'formatted_address': address
-        }
-    
-    @staticmethod
-    def calculate_distance(location1, location2):
-        """Calculate distance between two locations"""
-        # This would use Google Distance Matrix API or similar
-        # For now, return mock distance
-        return {
-            'distance_km': 12.5,
-            'duration_minutes': 18,
-            'route_available': True
-        }
-    
-    @staticmethod
     def send_bulk_notification(user_list, subject, body):
         """Send bulk email notifications"""
         successful_sends = 0

@@ -126,11 +126,8 @@
                                         <td>
                                             {% if booking.status == 'pending' %}
                                             <div class="btn-group btn-group-sm">
-                                                <a href="{{ url_for('owner.approve_booking', booking_id=booking.id) }}" class="btn btn-success btn-sm" title="Approve">
-                                                    <i class="fas fa-check"></i>
-                                                </a>
-                                                <a href="{{ url_for('owner.reject_booking', booking_id=booking.id) }}" class="btn btn-danger btn-sm" title="Reject">
-                                                    <i class="fas fa-times"></i>
+                                                <a href="{{ url_for('owner.booking_requests') }}" class="btn btn-primary btn-sm" title="Manage">
+                                                    <i class="fas fa-clipboard-list"></i>
                                                 </a>
                                             </div>
                                             {% else %}

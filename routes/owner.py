@@ -246,7 +246,7 @@ def calendar():
     
     # Calendar data loaded via AJAX through API
     # No business logic in controller
-    return render_template('owner/calendar.html')
+    return render_template('owner/court_calendar.html')
 
 @owner_bp.route('/reports')
 @login_required

@@ -511,9 +511,11 @@ async function updateBookingStatus(bookingId, action) {
         });
         
         if (response.ok) {
-            location.reload(); // Refresh the page to show updated status
+            // Force complete page reload with cache busting
+            window.location.href = window.location.pathname + '?updated=' + Date.now();
         } else {
-            alert(`Failed to ${action} booking. Please try again.`);
+            const errorText = await response.text();
+            alert(`Failed to ${action} booking: ${errorText}`);
         }
     } catch (error) {
         console.error('Error updating booking status:', error);

@@ -401,24 +401,46 @@ def update_settings():
     
     return redirect(url_for('owner.settings'))
 
-@owner_bp.route('/toggle-court/<int:court_id>')
+
+@owner_bp.route('/delete-court/<int:court_id>', methods=['POST'])
 @login_required
 @owner_required
-def toggle_court_status(court_id):
-    """Toggle court active status - CLEANED VERSION"""
+def delete_court(court_id):
+    """Delete court - CLEANED VERSION"""
     user_id = session['user_id']
     
     # Verify ownership
     court = Court.query.filter_by(id=court_id, owner_id=user_id).first_or_404()
     
-    court.is_active = not court.is_active
-    status_text = "activated" if court.is_active else "deactivated"
+    # Check if court has active bookings
+    active_bookings = Booking.query.filter(
+        Booking.court_id == court_id,
+        Booking.status.in_(['confirmed', 'pending']),
+        Booking.booking_date >= datetime.now().date()
+    ).count()
+    
+    if active_bookings > 0:
+        flash(f'Cannot delete court "{court.name}" - it has {active_bookings} active bookings', 'error')
+        return redirect(url_for('owner.edit_court', court_id=court_id))
+    
+    court_name = court.name
     
     try:
+        # Cancel all future pending bookings
+        future_bookings = Booking.query.filter(
+            Booking.court_id == court_id,
+            Booking.booking_date >= datetime.now().date()
+        ).all()
+        
+        for booking in future_bookings:
+            booking.status = 'cancelled'
+            booking.cancellation_reason = 'Court deleted by owner'
+        
+        db.session.delete(court)
         db.session.commit()
-        flash(f'Court "{court.name}" has been {status_text}', 'success')
+        flash(f'Court "{court_name}" has been deleted successfully', 'success')
     except Exception as e:
         db.session.rollback()
-        flash('Error updating court status', 'error')
+        flash('Error deleting court', 'error')
     
     return redirect(url_for('owner.manage_courts'))

@@ -48,12 +48,8 @@ def book_court():
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get available courts using service
-    courts = MatchingEngine.recommend_courts(
-        player_id=player.id,
-        location=request.args.get('location'),
-        limit=20
-    )
+    # Get available courts - simple query
+    courts = Court.query.filter_by(is_active=True).all()
     
     # Get booking date from query params
     booking_date = request.args.get('date')

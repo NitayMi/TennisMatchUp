@@ -10,6 +10,7 @@ from models.court import Court, Booking
 from models.message import Message
 from services.rule_engine import RuleEngine
 from services.cloud_service import CloudService
+from services.email_service import EmailService
 from sqlalchemy import and_, or_, func
 import json
 
@@ -417,7 +418,7 @@ Please review and approve this booking request.
             
             # Try to send email notification if CloudService is available
             try:
-                CloudService.send_booking_approval_notification(booking)
+                EmailService.send_booking_approval_notification(booking)
             except:
                 pass  # Email is optional
                 

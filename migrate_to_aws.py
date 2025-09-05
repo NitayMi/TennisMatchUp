@@ -8,6 +8,7 @@ import sqlite3
 from dotenv import load_dotenv
 from app import create_app
 from models.database import db
+from sqlalchemy import text
 
 load_dotenv()
 

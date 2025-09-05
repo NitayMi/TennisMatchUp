@@ -461,131 +461,131 @@ class RuleEngine:
     
     # הוסף את המתודות האלה לקובץ services/rule_engine.py
 
-@staticmethod
-def check_court_availability(court_id, date_str):
-    """Check court availability for a specific date"""
-    try:
-        from datetime import datetime
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        
-        # Get existing bookings
-        from models.court import Booking
-        existing_bookings = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.booking_date == target_date,
-            Booking.status.in_(['confirmed', 'pending'])
-        ).count()
-        
-        # Calculate available slots (13 total slots from 8 AM to 9 PM)
-        total_possible_slots = 13
-        available_slots = max(0, total_possible_slots - existing_bookings)
-        
-        return {
-            'available': available_slots > 0,
-            'available_slots': available_slots,
-            'existing_bookings': existing_bookings,
-            'date': target_date.isoformat()
-        }
-        
-    except Exception as e:
-        return {
-            'available': False,
-            'available_slots': 0,
-            'existing_bookings': 0,
-            'error': str(e)
-        }
+    @staticmethod
+    def check_court_availability(court_id, date_str):
+        """Check court availability for a specific date"""
+        try:
+            from datetime import datetime
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
+            # Get existing bookings
+            from models.court import Booking
+            existing_bookings = Booking.query.filter(
+                Booking.court_id == court_id,
+                Booking.booking_date == target_date,
+                Booking.status.in_(['confirmed', 'pending'])
+            ).count()
+            
+            # Calculate available slots (13 total slots from 8 AM to 9 PM)
+            total_possible_slots = 13
+            available_slots = max(0, total_possible_slots - existing_bookings)
+            
+            return {
+                'available': available_slots > 0,
+                'available_slots': available_slots,
+                'existing_bookings': existing_bookings,
+                'date': target_date.isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                'available': False,
+                'available_slots': 0,
+                'existing_bookings': 0,
+                'error': str(e)
+            }
 
-@staticmethod
-def validate_booking_time_range(start_time_str, end_time_str):
-    """Validate booking time range meets business rules"""
-    try:
-        from datetime import datetime, time
-        
-        start_time = datetime.strptime(start_time_str, '%H:%M').time()
-        end_time = datetime.strptime(end_time_str, '%H:%M').time()
-        
-        # Business rules for time validation
-        opening_time = time(6, 0)   # 6 AM
-        closing_time = time(22, 0)  # 10 PM
-        
-        # Check operating hours
-        if start_time < opening_time or end_time > closing_time:
+    @staticmethod
+    def validate_booking_time_range(start_time_str, end_time_str):
+        """Validate booking time range meets business rules"""
+        try:
+            from datetime import datetime, time
+            
+            start_time = datetime.strptime(start_time_str, '%H:%M').time()
+            end_time = datetime.strptime(end_time_str, '%H:%M').time()
+            
+            # Business rules for time validation
+            opening_time = time(6, 0)   # 6 AM
+            closing_time = time(22, 0)  # 10 PM
+            
+            # Check operating hours
+            if start_time < opening_time or end_time > closing_time:
+                return {
+                    'valid': False,
+                    'reason': f'Court operates from {opening_time.strftime("%I:%M %p")} to {closing_time.strftime("%I:%M %p")}'
+                }
+            
+            # Check minimum duration (1 hour)
+            start_datetime = datetime.combine(datetime.today(), start_time)
+            end_datetime = datetime.combine(datetime.today(), end_time)
+            duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
+            
+            if duration_hours < 1:
+                return {
+                    'valid': False,
+                    'reason': 'Minimum booking duration is 1 hour'
+                }
+            
+            # Check maximum duration (4 hours)
+            if duration_hours > 4:
+                return {
+                    'valid': False,
+                    'reason': 'Maximum booking duration is 4 hours'
+                }
+            
+            return {
+                'valid': True,
+                'duration_hours': duration_hours
+            }
+            
+        except ValueError:
             return {
                 'valid': False,
-                'reason': f'Court operates from {opening_time.strftime("%I:%M %p")} to {closing_time.strftime("%I:%M %p")}'
+                'reason': 'Invalid time format'
             }
-        
-        # Check minimum duration (1 hour)
-        start_datetime = datetime.combine(datetime.today(), start_time)
-        end_datetime = datetime.combine(datetime.today(), end_time)
-        duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
-        
-        if duration_hours < 1:
-            return {
-                'valid': False,
-                'reason': 'Minimum booking duration is 1 hour'
-            }
-        
-        # Check maximum duration (4 hours)
-        if duration_hours > 4:
-            return {
-                'valid': False,
-                'reason': 'Maximum booking duration is 4 hours'
-            }
-        
-        return {
-            'valid': True,
-            'duration_hours': duration_hours
-        }
-        
-    except ValueError:
-        return {
-            'valid': False,
-            'reason': 'Invalid time format'
-        }
 
-@staticmethod
-def validate_booking_conflicts(court_id, booking_date_str, start_time_str, end_time_str, exclude_booking_id=None):
-    """Check for booking conflicts with existing bookings"""
-    try:
-        from datetime import datetime
-        from models.court import Booking
-        
-        booking_date = datetime.strptime(booking_date_str, '%Y-%m-%d').date()
-        start_time = datetime.strptime(start_time_str, '%H:%M').time()
-        end_time = datetime.strptime(end_time_str, '%H:%M').time()
-        
-        # Query for conflicting bookings
-        conflicts_query = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.booking_date == booking_date,
-            Booking.status.in_(['confirmed', 'pending']),
-            # Check for time overlap
-            Booking.start_time < end_time,
-            Booking.end_time > start_time
-        )
-        
-        # Exclude current booking if editing
-        if exclude_booking_id:
-            conflicts_query = conflicts_query.filter(Booking.id != exclude_booking_id)
-        
-        conflicts = conflicts_query.all()
-        
-        if conflicts:
-            conflict_times = [
-                f"{conflict.start_time.strftime('%H:%M')}-{conflict.end_time.strftime('%H:%M')}"
-                for conflict in conflicts
-            ]
+    @staticmethod
+    def validate_booking_conflicts(court_id, booking_date_str, start_time_str, end_time_str, exclude_booking_id=None):
+        """Check for booking conflicts with existing bookings"""
+        try:
+            from datetime import datetime
+            from models.court import Booking
+            
+            booking_date = datetime.strptime(booking_date_str, '%Y-%m-%d').date()
+            start_time = datetime.strptime(start_time_str, '%H:%M').time()
+            end_time = datetime.strptime(end_time_str, '%H:%M').time()
+            
+            # Query for conflicting bookings
+            conflicts_query = Booking.query.filter(
+                Booking.court_id == court_id,
+                Booking.booking_date == booking_date,
+                Booking.status.in_(['confirmed', 'pending']),
+                # Check for time overlap
+                Booking.start_time < end_time,
+                Booking.end_time > start_time
+            )
+            
+            # Exclude current booking if editing
+            if exclude_booking_id:
+                conflicts_query = conflicts_query.filter(Booking.id != exclude_booking_id)
+            
+            conflicts = conflicts_query.all()
+            
+            if conflicts:
+                conflict_times = [
+                    f"{conflict.start_time.strftime('%H:%M')}-{conflict.end_time.strftime('%H:%M')}"
+                    for conflict in conflicts
+                ]
+                return {
+                    'valid': False,
+                    'reason': f'Time slot conflicts with existing booking(s): {", ".join(conflict_times)}',
+                    'conflicts': conflicts
+                }
+            
+            return {'valid': True}
+            
+        except Exception as e:
             return {
                 'valid': False,
-                'reason': f'Time slot conflicts with existing booking(s): {", ".join(conflict_times)}',
-                'conflicts': conflicts
+                'reason': f'Error checking conflicts: {str(e)}'
             }
-        
-        return {'valid': True}
-        
-    except Exception as e:
-        return {
-            'valid': False,
-            'reason': f'Error checking conflicts: {str(e)}'
-        }

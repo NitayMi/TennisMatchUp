@@ -140,7 +140,7 @@ class RuleEngine:
         
         # 5. Validate time range using business rules
         if isinstance(start_time, str) and isinstance(end_time, str):
-            time_validation = RuleEngine.validate_booking_time_range(start_time, end_time)
+            time_validation = RuleEngine.validate_booking_time_range(start_time, end_time, player_id)
             if not time_validation['valid']:
                 return time_validation
         

@@ -3,7 +3,6 @@ from models.database import db
 from models.user import User
 from models.player import Player
 from services.rule_engine import RuleEngine
-from services.cloud_service import CloudService
 from services.email_service import EmailService
 from utils.helpers import validate_email, validate_phone
 
@@ -155,7 +154,7 @@ def register():
             
             # Send welcome email
             try:
-                CloudService.send_welcome_email(user)
+                EmailService.send_welcome_email(user)
             except:
                 pass  # Don't fail registration if email fails
             

@@ -34,7 +34,6 @@ You are now acting as a senior web systems development expert, a global CTO with
 ## Business Logic Layer - STRICT RULES:
 - **services/rule_engine.py** – ALL business rules and validations
 - **services/matching_engine.py** – Player matching logic ONLY
-- **services/cloud_service.py** – External API communication ONLY
 - **NO price calculations, business rules, or validations in HTML, JS, or routes**
 
 ## Authentication & Security:
@@ -155,7 +154,7 @@ heres the analysis you gave me last time:
   - RuleEngine: Centralized business rules with 590+ lines of comprehensive validation
   - MatchingEngine: Sophisticated player matching with geographic precision
   - SharedBookingService: Perfect example of clean service architecture
-  - External Integrations: Professional CloudService, GeoService, AIService
+  - External Integrations: Professional, GeoService, AIService
 
   Example of Perfect Service Architecture:
   # SharedBookingService - BEST PRACTICE EXAMPLE
@@ -169,7 +168,6 @@ heres the analysis you gave me last time:
 
   ⚠️ Minor Issues:
   - Some direct model queries (acceptable for service layer)
-  - Mock implementations in CloudService (development phase)
 
   ---
   3. CONTROLLER LAYER (Routes) - Grade: C

@@ -51,7 +51,7 @@ class BookingService:
             return {'success': False, 'error': f'Calculation error: {str(e)}'}
     
     @staticmethod
-    def validate_booking_time(court_id, booking_date, start_time, end_time):
+    def validate_booking_time(court_id, booking_date, start_time, end_time, player_id=None):
         """Validate if booking time slot is available"""
         try:
             # Convert strings to proper types
@@ -62,9 +62,10 @@ class BookingService:
             if isinstance(end_time, str):
                 end_time = datetime.strptime(end_time, '%H:%M').time()
             
-            # Use RuleEngine for validation
+            # Use RuleEngine for validation - עם player_id
             validation = RuleEngine.validate_booking(
                 court_id=court_id,
+                player_id=player_id,  # הוסף את השורה הזו!
                 booking_date=booking_date,
                 start_time=start_time,
                 end_time=end_time
@@ -74,13 +75,13 @@ class BookingService:
             
         except Exception as e:
             return {'valid': False, 'reason': f'Validation error: {str(e)}'}
-    
+
     @staticmethod
     def process_booking_request(player_id, court_id, booking_date, start_time, end_time, notes=None):
         """Create a new booking request"""
         try:
             # Validate inputs first
-            validation = BookingService.validate_booking_time(court_id, booking_date, start_time, end_time)
+            validation = BookingService.validate_booking_time(court_id, booking_date, start_time, end_time, player_id)
             if not validation['valid']:
                 return {'success': False, 'error': validation['reason']}
             
@@ -415,7 +416,7 @@ Please review and approve this booking request.
             db.session.add(notification)
             db.session.commit()
             
-            # Try to send email notification if CloudService is available
+            # Try to send email notification
             try:
                 EmailService.send_booking_approval_notification(booking)
             except:

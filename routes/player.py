@@ -51,13 +51,13 @@ def book_court():
     player = Player.query.filter_by(user_id=user_id).first()
     
     # Debug: בדוק כמה מגרשים יש
-    all_courts = Court.query.all()
+    # all_courts = Court.query.all()
     active_courts = Court.query.filter_by(is_active=True).all()
     
-    print(f"DEBUG: Total courts: {len(all_courts)}")
-    print(f"DEBUG: Active courts: {len(active_courts)}")
-    for court in all_courts:
-        print(f"Court: {court.name}, Active: {court.is_active}")
+    # print(f"DEBUG: Total courts: {len(all_courts)}")
+    # print(f"DEBUG: Active courts: {len(active_courts)}")
+    # for court in all_courts:
+    #     print(f"Court: {court.name}, Active: {court.is_active}")
     
     courts = active_courts  # רק מגרשים פעילים  
     

@@ -3,6 +3,7 @@ Player Routes for TennisMatchUp
 CLEANED VERSION - All business logic moved to Services
 Controllers only handle HTTP concerns
 """
+from warnings import filters
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
 from models.user import User
 from models.player import Player
@@ -40,6 +41,7 @@ def dashboard():
                          stats=stats,
                          recent_bookings=recent_bookings)
 
+
 @player_bp.route('/book-court')
 @login_required
 @player_required
@@ -48,17 +50,35 @@ def book_court():
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get available courts - simple query
-    courts = Court.query.filter_by(is_active=True).all()
+    # Debug: בדוק כמה מגרשים יש
+    all_courts = Court.query.all()
+    active_courts = Court.query.filter_by(is_active=True).all()
+    
+    print(f"DEBUG: Total courts: {len(all_courts)}")
+    print(f"DEBUG: Active courts: {len(active_courts)}")
+    for court in all_courts:
+        print(f"Court: {court.name}, Active: {court.is_active}")
+    
+    courts = active_courts  # רק מגרשים פעילים  
     
     # Get booking date from query params
     booking_date = request.args.get('date')
     
+    # הוסף את הfilters החסרים
+    filters = {
+        'location': request.args.get('location'),
+        'court_type': request.args.get('court_type'),
+        'surface': request.args.get('surface'),
+        'max_price': request.args.get('max_price'),
+        'date': booking_date
+    }
+    
     return render_template('player/book_court.html',
-                         courts=courts,
-                         selected_date=booking_date,
+                         available_courts=courts,
                          player=player,
-                         filters={})
+                         booking_date=booking_date,
+                         filters=filters)
+
 
 @player_bp.route('/submit-booking', methods=['POST'])
 @login_required

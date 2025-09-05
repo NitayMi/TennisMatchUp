@@ -14,6 +14,7 @@ from services.revenue_service import RevenueService
 from services.booking_service import BookingService
 from services.rule_engine import RuleEngine
 from datetime import datetime, timedelta
+from services.geo_service import GeoService
 
 owner_bp = Blueprint('owner', __name__, url_prefix='/owner')
 
@@ -60,7 +61,7 @@ def manage_courts():
 @login_required
 @owner_required
 def add_court():
-    """Add a new court - CLEANED VERSION"""
+    """Add a new court - UPDATED WITH AUTO GEOCODING"""
     user_id = session['user_id']
     
     if request.method == 'POST':
@@ -92,26 +93,48 @@ def add_court():
         
         try:
             db.session.add(court)
+            db.session.flush()  # Get court ID without committing
+            
+            # AUTOMATIC GEOCODING - NEW FEATURE
+            from services.geo_service import GeoService
+            
+            print(f"🌍 Auto-geocoding court: {court.name} - {court.location}")
+            coordinates = GeoService.get_coordinates(court.location)
+            
+            if coordinates:
+                court.latitude = coordinates[0]
+                court.longitude = coordinates[1]
+                print(f"✅ Geocoded: {coordinates[0]:.4f}, {coordinates[1]:.4f}")
+                flash(f'Court "{court.name}" added successfully with location mapping!', 'success')
+            else:
+                print(f"⚠️ Geocoding failed for: {court.location}")
+                flash(f'Court "{court.name}" added successfully (location will be mapped later)', 'warning')
+            
             db.session.commit()
-            flash(f'Court "{court.name}" added successfully!', 'success')
             return redirect(url_for('owner.manage_courts'))
+            
         except Exception as e:
             db.session.rollback()
+            print(f"❌ Error adding court: {str(e)}")
             flash('Error adding court', 'error')
     
     return render_template('owner/add_court.html')
+
+
 
 @owner_bp.route('/edit-court/<int:court_id>', methods=['GET', 'POST'])
 @login_required
 @owner_required
 def edit_court(court_id):
-    """Edit court details - CLEANED VERSION"""
+    """Edit court details - UPDATED WITH AUTO GEOCODING"""
     user_id = session['user_id']
     
     # Verify ownership
     court = Court.query.filter_by(id=court_id, owner_id=user_id).first_or_404()
     
     if request.method == 'POST':
+        old_location = court.location
+        
         # Update court data
         court.name = request.form.get('name', '').strip()
         court.location = request.form.get('location', '').strip()
@@ -122,11 +145,31 @@ def edit_court(court_id):
         court.is_active = 'is_active' in request.form
         
         try:
+            # CHECK IF LOCATION CHANGED - NEW LOGIC
+            if court.location != old_location:
+                from services.geo_service import GeoService
+                
+                print(f"🌍 Location changed, re-geocoding: {court.location}")
+                coordinates = GeoService.get_coordinates(court.location)
+                
+                if coordinates:
+                    court.latitude = coordinates[0]
+                    court.longitude = coordinates[1]
+                    print(f"✅ Re-geocoded: {coordinates[0]:.4f}, {coordinates[1]:.4f}")
+                    flash('Court updated successfully with new location mapping!', 'success')
+                else:
+                    print(f"⚠️ Re-geocoding failed for: {court.location}")
+                    # Keep old coordinates if geocoding fails
+                    flash('Court updated successfully (location mapping will be updated later)', 'warning')
+            else:
+                flash('Court updated successfully!', 'success')
+            
             db.session.commit()
-            flash('Court updated successfully!', 'success')
             return redirect(url_for('owner.manage_courts'))
+            
         except Exception as e:
             db.session.rollback()
+            print(f"❌ Error updating court: {str(e)}")
             flash('Error updating court', 'error')
     
     return render_template('owner/edit_court.html', court=court)

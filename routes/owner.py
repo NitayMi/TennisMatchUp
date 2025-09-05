@@ -402,6 +402,29 @@ def update_settings():
     return redirect(url_for('owner.settings'))
 
 
+@owner_bp.route('/court/<int:court_id>/toggle-status', methods=['POST'])
+@login_required
+@owner_required
+def toggle_court_status(court_id):
+    """Toggle court active status - owner version"""
+    user_id = session['user_id']
+    
+    # Verify ownership
+    court = Court.query.filter_by(id=court_id, owner_id=user_id).first_or_404()
+    
+    court.is_active = not court.is_active
+    action = "activated" if court.is_active else "deactivated"
+    
+    try:
+        db.session.commit()
+        flash(f'Court "{court.name}" has been {action}', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error updating court status', 'error')
+    
+    return redirect(url_for('owner.manage_courts'))
+
+
 @owner_bp.route('/delete-court/<int:court_id>', methods=['POST'])
 @login_required
 @owner_required

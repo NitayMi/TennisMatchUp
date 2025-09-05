@@ -280,8 +280,8 @@
                 <div class="card-body">
                     <!-- Hidden data for JavaScript -->
                     <div data-court-name="{{ court.name|e }}" 
-                         data-delete-url="{{ url_for('owner.delete_court', court_id=court.id) if url_for('owner.delete_court', court_id=court.id) else '#' }}" 
-                         style="display: none;"></div>
+                    data-delete-url="{{ url_for('owner.delete_court', court_id=court.id) }}"
+                    style="display: none;"></div>
                     
                     <div class="d-flex justify-content-between align-items-center">
                         <div>

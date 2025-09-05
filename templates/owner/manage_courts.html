@@ -142,7 +142,7 @@
                                         </a>
                                         
                                         <!-- Toggle Status -->
-                                        <a href="{{ url_for('owner.toggle_court_status', court_id=court.id) }}" 
+                                        <a href="{{ url_for('owner.toggle_court_status', court_id=court.id) }}"
                                            class="btn btn-sm btn-outline-{{ 'warning' if court.is_active else 'success' }}"
                                            title="{{ 'Deactivate' if court.is_active else 'Activate' }} Court"
                                            data-court-action="{{ 'deactivate' if court.is_active else 'activate' }}"

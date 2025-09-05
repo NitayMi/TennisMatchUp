@@ -273,7 +273,7 @@ function initializeCalendar() {
 async function loadCalendarData() {
     try {
         // Load bookings data
-        const response = await fetch('/api/bookings/calendar');
+        const response = await fetch('/api/calendar/events');
         const data = await response.json();
         
         if (data.success) {

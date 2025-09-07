@@ -138,20 +138,18 @@
                             </div>
                             {% endif %}
                         </div>
-                        
-                        <!-- Match Highlights -->
-                        {% if match.common_interests %}
-                        {% set clean_text = match.common_interests|replace('Both available None', '')|replace(', ,', ',')|replace(',,', '') %}
-                        {% if clean_text and clean_text.strip() and clean_text.strip() != ',' %}
+
+                        <!-- Match Highlights - Enhanced UX -->
+                        {% if match.common_interests and match.common_interests|length > 0 %}
                         <div class="match-highlights mb-3">
-                            <small>
+                            <small class="text-success">
                                 <i class="fas fa-check-circle me-1"></i>
-                                {{ clean_text.strip(',').strip() }}
+                                {% for interest in match.common_interests[:3] %}
+                                    {{ interest }}{% if not loop.last %} • {% endif %}
+                                {% endfor %}
                             </small>
                         </div>
                         {% endif %}
-                        {% endif %}
-
                         
                         <!-- Action Buttons -->
                         <div class="match-actions">

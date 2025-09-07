@@ -68,11 +68,15 @@
 
 .compatibility-score {
     display: block;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-weight: 900;
-    color: #042507;
-    line-height: 1;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+    color: white;
+    background: var(--tennis-green);
+    padding: 0.3rem 0.6rem;
+    border-radius: 8px;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(44, 85, 48, 0.3);
 }
 
 .compatibility-label {
@@ -139,24 +143,24 @@
 
 /* ========== Match Highlights - Fixed Layout ========== */
 .match-highlights {
-    background: rgba(44, 85, 48, 0.05);
-    border-left: 3px solid var(--tennis-green);
+    background: rgba(40, 167, 69, 0.08);
+    border-left: 3px solid #28a745;
     padding: 0.5rem 0.75rem;
-    border-radius: 0 8px 8px 0;
+    border-radius: 0 6px 6px 0;
     margin: 0.5rem 0;
 }
 
 .match-highlights small {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.5rem;
     line-height: 1.4;
-    color: var(--tennis-green);
+    color: #155724;
     font-weight: 500;
 }
 
 .match-highlights i {
-    margin-top: 2px;
+    color: #28a745;
     flex-shrink: 0;
 }
 

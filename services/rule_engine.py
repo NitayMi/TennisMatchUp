@@ -92,8 +92,6 @@ class RuleEngine:
         
         return result    
 
-    # החלף את המתודה validate_booking הקיימת ב-services/rule_engine.py עם זו:
-
     @staticmethod
     def validate_booking(court_id, player_id, booking_date, start_time, end_time, exclude_booking_id=None):
         """Comprehensive booking validation using business rules"""
@@ -459,8 +457,6 @@ class RuleEngine:
             'warnings': warnings
         }
     
-    # הוסף את המתודות האלה לקובץ services/rule_engine.py
-
     @staticmethod
     def check_court_availability(court_id, date_str):
         """Check court availability for a specific date"""
@@ -589,3 +585,74 @@ class RuleEngine:
                 'valid': False,
                 'reason': f'Error checking conflicts: {str(e)}'
             }
+    
+    @staticmethod
+    def validate_status_change(current_status, new_status, user_type=None, booking_id=None):
+        """Validate booking status change based on business rules"""
+        result = {'valid': True, 'reason': ''}
+        
+        # Valid status transitions
+        valid_transitions = {
+            'pending': ['confirmed', 'rejected', 'cancelled'],
+            'confirmed': ['cancelled'],
+            'rejected': [],  # Final state
+            'cancelled': []  # Final state
+        }
+        
+        # Check if transition is allowed
+        if new_status not in valid_transitions.get(current_status, []):
+            result['valid'] = False
+            result['reason'] = f'Cannot change from {current_status} to {new_status}'
+            return result
+        
+        # User type specific validations
+        if user_type == 'owner':
+            # Owners can approve (pending->confirmed) and reject (pending->rejected)
+            if current_status == 'pending' and new_status in ['confirmed', 'rejected']:
+                result['valid'] = True
+            # Owners can cancel confirmed bookings
+            elif current_status == 'confirmed' and new_status == 'cancelled':
+                result['valid'] = True
+            else:
+                result['valid'] = False
+                result['reason'] = f'Owners cannot change booking from {current_status} to {new_status}'
+                return result
+        
+        elif user_type == 'player':
+            # Players can only cancel their own bookings
+            if new_status == 'cancelled' and current_status in ['pending', 'confirmed']:
+                result['valid'] = True
+            else:
+                result['valid'] = False
+                result['reason'] = f'Players cannot change booking from {current_status} to {new_status}'
+                return result
+        
+        # Additional business rule validations
+        if booking_id and new_status == 'confirmed':
+            # Check for date conflicts when confirming
+            from models.court import Booking
+            booking = Booking.query.get(booking_id)
+            if booking:
+                # Check if booking date hasn't passed
+                from datetime import datetime, date
+                if booking.booking_date < date.today():
+                    result['valid'] = False
+                    result['reason'] = 'Cannot approve booking for past date'
+                    return result
+                
+                # Check for conflicts with other confirmed bookings
+                conflicts = Booking.query.filter(
+                    Booking.court_id == booking.court_id,
+                    Booking.booking_date == booking.booking_date,
+                    Booking.status == 'confirmed',
+                    Booking.id != booking_id,
+                    Booking.start_time < booking.end_time,
+                    Booking.end_time > booking.start_time
+                ).first()
+                
+                if conflicts:
+                    result['valid'] = False
+                    result['reason'] = 'Time slot conflicts with another confirmed booking'
+                    return result
+        
+        return result

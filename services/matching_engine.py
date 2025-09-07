@@ -353,12 +353,12 @@ class MatchingEngine:
     
     @staticmethod
     def _find_smart_common_interests(player1, player2):
-        """Find detailed common interests"""
+        """Find detailed common interests with proper UX formatting"""
         interests = []
         
-        # Skill level
+        # Skill level compatibility
         if player1.skill_level == player2.skill_level:
-            interests.append(f"Both {player1.skill_level} level")
+            interests.append(f"Both {player1.skill_level} players")
         elif abs(MatchingEngine._skill_level_to_num(player1.skill_level) - 
                 MatchingEngine._skill_level_to_num(player2.skill_level)) == 1:
             interests.append("Compatible skill levels")
@@ -373,13 +373,17 @@ class MatchingEngine:
             elif distance <= 15:
                 interests.append("Same area")
         
-        # Availability
-        if player1.availability == player2.availability:
-            interests.append(f"Both available {player1.availability}")
-        elif 'flexible' in [player1.availability, player2.availability]:
-            interests.append("Flexible scheduling")
+        # Availability - FIX THE CORE PROBLEM
+        if (player1.availability and player2.availability and 
+            player1.availability.lower() not in ['none', 'null', ''] and
+            player2.availability.lower() not in ['none', 'null', '']):
+            
+            if player1.availability == player2.availability:
+                interests.append(f"Both prefer {player1.availability} sessions")
+            elif 'flexible' in [player1.availability.lower(), player2.availability.lower()]:
+                interests.append("Flexible scheduling available")
         
-        # Bio analysis
+        # Bio analysis with better filtering
         if player1.bio and player2.bio:
             bio1_words = set(player1.bio.lower().split())
             bio2_words = set(player2.bio.lower().split())
@@ -387,15 +391,25 @@ class MatchingEngine:
             tennis_keywords = {'competitive', 'social', 'fun', 'doubles', 'singles', 'tournament', 'practice'}
             common_tennis_words = bio1_words.intersection(bio2_words).intersection(tennis_keywords)
             
-            for word in list(common_tennis_words)[:2]:  # Max 2 bio interests
-                interests.append(f"Both {word}")
+            for word in list(common_tennis_words)[:2]:
+                interests.append(f"Both enjoy {word} tennis")
         
-        return interests[:4]  # Max 4 interests
+        # Return clean, user-friendly list
+        return interests[:3] if interests else ["Similar playing style"]
     
     @staticmethod
     def _skill_level_to_num(skill_level):
         """Convert skill level to number"""
         return {'beginner': 1, 'intermediate': 2, 'advanced': 3, 'professional': 4}.get(skill_level, 2)
+    
+    @staticmethod
+    def _is_valid_availability(availability):
+        """Validate availability value for display"""
+        if not availability:
+            return False
+        if isinstance(availability, str):
+            return availability.lower() not in ['none', 'null', '', 'undefined']
+        return True
     
     @staticmethod
     def _get_activity_summary(player_id):

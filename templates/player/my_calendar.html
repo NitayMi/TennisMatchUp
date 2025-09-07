@@ -212,7 +212,7 @@
 {% block extra_scripts %}
 <script>
 // Pass booking data to JavaScript (MVC compliant - no business logic)
-window.bookingsData = {{ bookings_json|safe }};
+window.bookingsData = '{{ bookings_json|safe }}';
 window.currentPlayer = '{{ player.id if player else 0 }}';
 </script>
 <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>

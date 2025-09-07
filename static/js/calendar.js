@@ -5,6 +5,12 @@ class TennisCalendar {
     constructor() {
         console.log('TennisCalendar constructor called');
         console.log('window.bookingsData:', window.bookingsData);
+        // Read data from HTML data attributes (MVC compliant)
+        const calendarDataEl = document.getElementById('calendarData');
+        if (calendarDataEl) {
+            window.bookingsData = JSON.parse(calendarDataEl.dataset.bookings || '[]');
+            window.currentPlayer = calendarDataEl.dataset.playerId || '0';
+        }
         
         this.currentDate = new Date();
         this.currentMonth = this.currentDate.getMonth();

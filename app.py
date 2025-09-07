@@ -14,6 +14,7 @@ from routes.player import player_bp
 from routes.owner import owner_bp
 from routes.admin import admin_bp
 from routes.shared_booking import shared_booking_bp
+from routes.messaging import messaging_bp
 
 def create_app():
     """Application factory"""
@@ -40,6 +41,7 @@ def create_app():
     app.register_blueprint(owner_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(shared_booking_bp)
+    app.register_blueprint(messaging_bp)
     
     # Error handlers
     @app.errorhandler(404)

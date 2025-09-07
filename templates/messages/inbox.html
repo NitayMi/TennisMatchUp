@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Messages - TennisMatchUp{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="bg-primary text-white py-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-envelope me-2"></i>Messages</h1>
+                <p class="lead mb-0">Your conversations</p>
+            </div>
+            <div>
+                <a href="{{ url_for('messaging.compose') }}" class="btn btn-light">
+                    <i class="fas fa-plus me-2"></i>New Message
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row">
+        <!-- Unread Counter -->
+        {% if unread_count > 0 %}
+        <div class="col-12 mb-3">
+            <div class="alert alert-info">
+                <i class="fas fa-bell me-2"></i>
+                You have <strong>{{ unread_count }}</strong> unread message{{ 's' if unread_count != 1 else '' }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Received Messages -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-inbox me-2"></i>Received Messages
+                        {% if unread_count > 0 %}
+                            <span class="badge bg-danger">{{ unread_count }}</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if messages_received %}
+                        {% for message in messages_received[:10] %}
+                        <div class="d-flex justify-content-between align-items-start mb-3 p-3 border rounded {{ 'bg-light' if not message.is_read else '' }}">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    {% if message.sender %}
+                                        {{ message.sender.full_name }}
+                                    {% else %}
+                                        Unknown User
+                                    {% endif %}
+                                    {% if not message.is_read %}
+                                        <span class="badge bg-primary">New</span>
+                                    {% endif %}
+                                </h6>
+                                <p class="mb-1">{{ message.get_preview(50) }}</p>
+                                <small class="text-muted">{{ message.get_time_display() }}</small>
+                            </div>
+                            <div>
+                                {% if not message.is_read %}
+                                    <button class="btn btn-sm btn-outline-primary" onclick="markAsRead('{{ message.id }}')">
+                                        Mark Read
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-envelope-open fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No messages received yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sent Messages -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-paper-plane me-2"></i>Sent Messages
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if messages_sent %}
+                        {% for message in messages_sent[:10] %}
+                        <div class="d-flex justify-content-between align-items-start mb-3 p-3 border rounded">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">
+                                    To: 
+                                    {% if message.receiver %}
+                                        {{ message.receiver.full_name }}
+                                    {% else %}
+                                        Unknown User
+                                    {% endif %}
+                                </h6>
+                                <p class="mb-1">{{ message.get_preview(50) }}</p>
+                                <small class="text-muted">{{ message.get_time_display() }}</small>
+                            </div>
+                            <div>
+                                {% if message.is_read %}
+                                    <small class="text-success">
+                                        <i class="fas fa-check-double"></i> Read
+                                    </small>
+                                {% else %}
+                                    <small class="text-muted">
+                                        <i class="fas fa-check"></i> Sent
+                                    </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-paper-plane fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No messages sent yet</p>
+                            <a href="{{ url_for('messaging.compose') }}" class="btn btn-primary">
+                                Send First Message
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for marking messages as read -->
+<script>
+function markAsRead(messageId) {
+    fetch('/messages/api/mark-read', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            message_id: messageId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Refresh page to show updated status
+        } else {
+            alert('Error marking message as read');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error marking message as read');
+    });
+}
+</script>
+{% endblock %}

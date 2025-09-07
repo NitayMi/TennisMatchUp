@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2566">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000; min-height: 14.0px}
+    span.s1 {font-kerning: none; color: #519deb; -webkit-text-stroke: 0px #519deb}
+    span.s2 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">open</span><span class="s2"> templates/messages/compose.html</span></p>
+<p class="p1"><span class="s2">{% extends "base.html" %}</span></p>
+<p class="p2"><span class="s2"></span><br></p>
+<p class="p1"><span class="s2">{% block title %}Compose Message - TennisMatchUp{% endblock %}</span></p>
+<p class="p2"><span class="s2"></span><br></p>
+<p class="p1"><span class="s2">{% block content %}</span></p>
+<p class="p1"><span class="s2">&lt;!-- Header --&gt;</span></p>
+<p class="p1"><span class="s2">&lt;div class="bg-success text-white py-4"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">    </span>&lt;div class="container"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">        </span>&lt;div class="d-flex justify-content-between align-items-center"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">            </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;h1&gt;&lt;i class="fas fa-edit me-2"&gt;&lt;/i&gt;Compose Message&lt;/h1&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;p class="lead mb-0"&gt;Send a message to another user&lt;/p&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">            </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;a href="{{ url_for('messaging.inbox') }}" class="btn btn-light"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                    </span>&lt;i class="fas fa-arrow-left me-2"&gt;&lt;/i&gt;Back to Inbox</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;/a&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2">&lt;/div&gt;</span></p>
+<p class="p2"><span class="s2"></span><br></p>
+<p class="p1"><span class="s2">&lt;div class="container py-4"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">    </span>&lt;div class="row justify-content-center"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">        </span>&lt;div class="col-md-8"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">            </span>&lt;div class="card"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;div class="card-header"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                    </span>&lt;h5 class="mb-0"&gt;New Message&lt;/h5&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;div class="card-body"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                    </span>&lt;form method="POST" action="{{ url_for('messaging.send_message') }}"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;!-- Recipient Selection --&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;div class="mb-3"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;label for="recipient_id" class="form-label"&gt;To:&lt;/label&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;select name="recipient_id" id="recipient_id" class="form-select" required&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                                </span>&lt;option value=""&gt;Select recipient...&lt;/option&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                                </span>{% for user in available_users %}</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                                </span>&lt;option value="{{ user.id }}"&gt;{{ user.full_name }} ({{ user.user_type.title() }})&lt;/option&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                                </span>{% endfor %}</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;/select&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s2"></span><br></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;!-- Message Content --&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;div class="mb-3"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;label for="content" class="form-label"&gt;Message:&lt;/label&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;textarea name="content" id="content" class="form-control" rows="6"<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                                      </span>placeholder="Type your message here..." required&gt;&lt;/textarea&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s2"></span><br></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;!-- Action Buttons --&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;div class="d-flex justify-content-between"&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;a href="{{ url_for('messaging.inbox') }}" class="btn btn-secondary"&gt;Cancel&lt;/a&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                            </span>&lt;button type="submit" class="btn btn-primary"&gt;Send Message&lt;/button&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                    </span>&lt;/form&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">            </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2"><span class="Apple-converted-space">    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2">&lt;/div&gt;</span></p>
+<p class="p1"><span class="s2">{% endblock %}</span></p>
+</body>
+</html>

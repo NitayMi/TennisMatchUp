@@ -89,24 +89,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ========== Filter Persistence ==========
     // Save filter state to localStorage for better UX
-    if (searchForm) {
-        const filterInputs = searchForm.querySelectorAll('select, input');
+    const filterInputs = searchForm?.querySelectorAll('select, input');
+    
+    filterInputs?.forEach(input => {
+        // Load saved values
+        const savedValue = localStorage.getItem(`filter_${input.name}`);
+        if (savedValue && !input.value) {
+            input.value = savedValue;
+        }
         
-        filterInputs.forEach(input => {
-            // Load saved values only if input is empty
-            if (input.name) {
-                const savedValue = localStorage.getItem(`filter_${input.name}`);
-                if (savedValue && !input.value) {
-                    input.value = savedValue;
-                }
-                
-                // Save on change
-                input.addEventListener('change', function() {
-                    localStorage.setItem(`filter_${this.name}`, this.value);
-                });
-            }
+        // Save on change
+        input.addEventListener('change', function() {
+            localStorage.setItem(`filter_${this.name}`, this.value);
         });
-    }
+    });
     
     // ========== Responsive Card Layout ==========
     const adjustCardLayout = () => {

@@ -151,10 +151,10 @@ class SharedBooking(db.Model):
             booking_date=self.booking_date,
             start_time=self.start_time,
             end_time=self.end_time,
-            status='confirmed',
-            notes=f"Shared booking with {self.player2.user.full_name}. {self.initiator_notes or ''}",
-            total_cost=self.total_cost
+            notes=f"Shared booking with {self.player2.user.full_name}. {self.initiator_notes or ''}"
         )
+        final_booking.total_cost = self.total_cost
+        final_booking.status = 'pending'  # ← הוסף את זה אחרי היצירה
         
         db.session.add(final_booking)
         db.session.flush()  # Get the booking ID

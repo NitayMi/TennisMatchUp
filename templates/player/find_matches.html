@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Find Matches - TennisMatchUp{% endblock %}
+{% block title %}Find Players - TennisMatchUp{% endblock %}
 
 {% block extra_head %}
 <link href="{{ url_for('static', filename='css/find-matches.css') }}" rel="stylesheet">
@@ -16,7 +16,7 @@
 </div>
 
 <div class="container py-4">
-    <!-- Search Filters -->
+    <!-- Search Filters (keeping existing functionality) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card filter-card">
@@ -47,20 +47,17 @@
                                 <label for="availability" class="form-label">Availability</label>
                                 <select class="form-select" id="availability" name="availability">
                                     <option value="">Any Time</option>
-                                    <option value="weekdays" {{ 'selected' if availability == 'weekdays' }}>Weekdays</option>
-                                    <option value="weekends" {{ 'selected' if availability == 'weekends' }}>Weekends</option>
-                                    <option value="evenings" {{ 'selected' if availability == 'evenings' }}>Evenings</option>
-                                    <option value="flexible" {{ 'selected' if availability == 'flexible' }}>Flexible</option>
+                                    <option value="morning" {{ 'selected' if availability == 'morning' }}>Morning</option>
+                                    <option value="afternoon" {{ 'selected' if availability == 'afternoon' }}>Afternoon</option>
+                                    <option value="evening" {{ 'selected' if availability == 'evening' }}>Evening</option>
+                                    <option value="weekend" {{ 'selected' if availability == 'weekend' }}>Weekend</option>
                                 </select>
                             </div>
                             
-                            <div class="col-md-3 mb-3">
-                                <label class="form-label">&nbsp;</label>
-                                <div class="d-grid gap-2">
-                                    <button type="submit" class="btn btn-tennis">
-                                        <i class="fas fa-search me-2"></i>Find Players
-                                    </button>
-                                </div>
+                            <div class="col-md-3 mb-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-tennis w-100">
+                                    <i class="fas fa-search me-2"></i>Search
+                                </button>
                             </div>
                         </div>
                     </form>
@@ -68,136 +65,129 @@
             </div>
         </div>
     </div>
-    
-    <!-- Results -->
+
+    <!-- Search Results -->
     <div id="match-results">
         {% if matches %}
-        <div class="row mb-3">
+        <div class="row mb-4">
             <div class="col-12">
-                <h4>Found {{ matches|length }} potential matches</h4>
-                <p class="text-muted">Players are sorted by compatibility score</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-1">{{ matches|length }} Compatible Players Found</h4>
+                        <p class="text-muted mb-0">Sorted by compatibility score • Updated moments ago</p>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">
+                            <i class="fas fa-filter me-1"></i>
+                            Showing active players in your area
+                        </small>
+                    </div>
+                </div>
             </div>
         </div>
         
         <div class="row">
             {% for match in matches %}
             <div class="col-lg-6 col-xl-4 mb-4">
-                <div class="card match-card h-100">
+                <div class="card player-match-card {% if loop.index == 1 %}featured-match{% endif %} h-100">
+                    <!-- Best Match Badge -->
+                    {% if loop.index == 1 %}
+                    <div class="best-match-badge">
+                        <i class="fas fa-star"></i> Best Match
+                    </div>
+                    {% endif %}
+                    
                     <div class="card-body">
-                        <!-- Player Info -->
+                        <!-- Player Header -->
                         <div class="d-flex justify-content-between align-items-start mb-3">
-                            <div>
-                                <h5 class="card-title mb-1">{{ match.user.full_name }}</h5>
-                                <span class="badge bg-tennis skill-badge">{{ match.player.skill_level|title }}</span>
+                            <div class="d-flex align-items-center">
+                                <div class="player-avatar me-3">
+                                    {{ match.user.full_name[0]|upper }}
+                                </div>
+                                <div>
+                                    <h5 class="card-title mb-1">{{ match.user.full_name }}</h5>
+                                    <span class="skill-badge skill-{{ match.player.skill_level }}">
+                                        {{ match.player.skill_level|title }}
+                                    </span>
+                                </div>
                             </div>
                             <div class="text-end">
-                                <div class="compatibility-score text-tennis">
-                                    {{ "%.0f"|format(match.compatibility_score) }}%
-                                </div>
-                                <small class="text-muted">Match</small>
-                            </div>
-                        </div>
-                        
-                        <!-- Player Details -->
-                        <div class="mb-3">
-                            <div class="row text-sm">
-                                <div class="col-6">
-                                    <i class="fas fa-map-marker-alt text-muted me-1"></i>
-                                    <small>{{ match.player.preferred_location }}</small>
-                                </div>
-                                <div class="col-6">
-                                    <i class="fas fa-clock text-muted me-1"></i>
-                                    <small>{{ match.player.availability|title }}</small>
+                                <div class="compatibility-circle">
+                                    <span class="compatibility-score">{{ "%.0f"|format(match.compatibility_score) }}%</span>
+                                    <small class="compatibility-label">Match</small>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Bio -->
-                        {% if match.player.bio %}
-                        <p class="card-text text-muted small mb-3">
-                            {{ match.player.bio[:100] }}{% if match.player.bio|length > 100 %}...{% endif %}
-                        </p>
-                        {% endif %}
+                        <!-- Quick Stats -->
+                        <div class="player-quick-stats mb-3">
+                            <div class="stat-item">
+                                <i class="fas fa-map-marker-alt text-tennis"></i>
+                                <span>{{ match.player.preferred_location }}</span>
+                            </div>
+                            {% if match.distance %}
+                            <div class="stat-item">
+                                <i class="fas fa-route text-tennis"></i>
+                                <span>{{ "%.1f"|format(match.distance) }} km away</span>
+                            </div>
+                            {% endif %}
+                            {% if match.player.availability and match.player.availability != 'None' %}
+                            <div class="stat-item">
+                                <i class="fas fa-clock text-tennis"></i>
+                                <span>{{ match.player.availability|title }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
                         
-                        <!-- Common Interests -->
+                        <!-- Match Highlights -->
                         {% if match.common_interests %}
-                        <div class="mb-3">
-                            <small class="text-success fw-bold">Common interests:</small>
-                            <small class="text-muted">{{ match.common_interests|join(', ') }}</small>
-                        </div>
-                        {% endif %}
-                        
-                        <!-- Distance -->
-                        {% if match.distance %}
-                        <div class="mb-3">
-                            <small class="text-muted">
-                                <i class="fas fa-route me-1"></i>
-                                Approximately {{ "%.1f"|format(match.distance) }} km away
+                        {% set clean_text = match.common_interests|replace('Both available None', '')|replace(', ,', ',')|replace(',,', '') %}
+                        {% if clean_text and clean_text.strip() and clean_text.strip() != ',' %}
+                        <div class="match-highlights mb-3">
+                            <small>
+                                <i class="fas fa-check-circle me-1"></i>
+                                {{ clean_text.strip(',').strip() }}
                             </small>
                         </div>
                         {% endif %}
+                        {% endif %}
+
                         
                         <!-- Action Buttons -->
-                        <div class="d-grid gap-2">                          
+                        <div class="match-actions">
                             <a href="{{ url_for('shared_booking.propose_booking', partner_player_id=match.player.id) }}" 
-                            class="btn btn-tennis btn-sm">
-                                <i class="fas fa-handshake me-2"></i>Suggest Joint Booking
+                               class="btn btn-tennis btn-primary-action">
+                                <i class="fas fa-calendar-plus me-2"></i>
+                                Suggest Court & Time
                             </a>
-
-                            <button class="btn btn-outline-tennis btn-sm" 
-                                    data-action="send-message"
+                            <button class="btn btn-outline-tennis btn-secondary-action" 
+                                    data-bs-toggle="modal" data-bs-target="#messageModal"
                                     data-player-id="{{ match.player.id }}"
                                     data-player-name="{{ match.user.full_name }}">
-                                <i class="fas fa-envelope me-2"></i>Send Message
+                                <i class="fas fa-envelope me-2"></i>
+                                Send Message
                             </button>
                         </div>
                     </div>
                     
-                    <!-- Last Activity -->
-                    {% if match.get('recent_activity') and match.recent_activity %}
-                    <div class="card-footer text-muted small">
-                        <i class="fas fa-clock me-1"></i>
-                        {% if match.recent_activity is string %}
-                            Last active: {{ match.recent_activity }}
-                        {% else %}
-                            Last active: {{ match.recent_activity.strftime('%d/%m/%Y') if match.recent_activity.strftime else match.recent_activity }}
-                        {% endif %}
+                    <!-- Match Quality Indicator -->
+                    <div class="match-quality-bar">
+                        <div class="quality-fill" style="width: '{{ match.compatibility_score }}%'"></div>
                     </div>
-                    {% endif %}
                 </div>
             </div>
             {% endfor %}
         </div>
-        
         {% else %}
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-body text-center py-5">
-                            <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                            <h4 class="text-muted">No players found</h4>
-                            <p class="text-muted mb-4">
-                                {% if skill_level or location or availability %}
-                                    Try adjusting your search criteria or check back later for new players
-                                {% else %}
-                                    No players available at the moment. Check back later!
-                                {% endif %}
-                            </p>
-                            
-                            <div class="d-flex justify-content-center gap-3">
-                                <button class="btn btn-outline-tennis" onclick="location.reload()">
-                                    <i class="fas fa-redo me-2"></i>Refresh Search
-                                </button>
-                                {% if skill_level or location or availability %}
-                                <button class="btn btn-tennis" onclick="expandSearch()">
-                                    <i class="fas fa-expand me-2"></i>Expand Search
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Empty State -->
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+            <h4>No players found matching your criteria</h4>
+            <p class="text-muted">Try adjusting your search filters or expanding your location range.</p>
+            <a href="{{ url_for('player.find_matches') }}" class="btn btn-tennis">
+                <i class="fas fa-refresh me-2"></i>Reset Filters
+            </a>
+        </div>
         {% endif %}
     </div>
     
@@ -219,27 +209,28 @@
     {% endif %}
 </div>
 
-<!-- Match Request Modal (for future use) -->
-<div class="modal fade" id="matchRequestModal" tabindex="-1">
+<!-- Message Modal -->
+<div class="modal fade" id="messageModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Send Match Request</h5>
+                <h5 class="modal-title">Send Message to <span id="modal-player-name"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <form id="matchRequestForm">
+            <form method="POST" action="{{ url_for('player.send_match_request') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="target_player_id" id="modal-player-id">
                     <div class="mb-3">
-                        <label for="requestMessage" class="form-label">Message (optional)</label>
-                        <textarea class="form-control" id="requestMessage" rows="3" 
-                                placeholder="Add a personal message..."></textarea>
+                        <label for="message" class="form-label">Your Message</label>
+                        <textarea class="form-control" name="message" rows="4" 
+                                  placeholder="Hi! I'd love to play tennis with you. Are you available for a match?"></textarea>
                     </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-tennis">Send Request</button>
-            </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-tennis">Send Message</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

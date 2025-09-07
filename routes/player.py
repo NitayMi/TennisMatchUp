@@ -5,18 +5,21 @@ Controllers only handle HTTP concerns
 """
 from warnings import filters
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, jsonify
+from datetime import datetime, timedelta
+import json
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
 from models.message import Message
 from models.database import db
-from sqlalchemy.orm import joinedload
+from models.shared_booking import SharedBooking
 from utils.decorators import login_required, player_required
 from services.booking_service import BookingService
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
-from datetime import datetime, timedelta
-import json
+
 
 player_bp = Blueprint('player', __name__, url_prefix='/player')
 
@@ -158,64 +161,98 @@ def cancel_booking(booking_id):
 @login_required
 @player_required
 def my_calendar():
-    """Player calendar view - CLEANED VERSION"""
+    """Player calendar view - UNIFIED VERSION"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
     if not player:
-        # Handle case where player doesn't exist
         return render_template('player/my_calendar.html',
                              player=None,
                              bookings=[],
                              booking_groups={'confirmed': [], 'pending': [], 'cancelled': []},
                              bookings_json='[]')
     
-    # Get actual booking objects for template (template needs object attributes)
-    # Get recent and upcoming bookings (last 30 days + next 90 days)
+    # Date range for calendar
     start_date = datetime.now() - timedelta(days=30)
     end_date = datetime.now() + timedelta(days=90)
     
-    bookings = Booking.query.join(Court).options(joinedload(Booking.court)).filter(
+    # UNIFIED BOOKING DATA COLLECTION
+    all_bookings_data = []
+    
+    # 1. Regular bookings
+    regular_bookings = Booking.query.join(Court).options(joinedload(Booking.court)).filter(
         Booking.player_id == player.id,
         Booking.booking_date.between(start_date.date(), end_date.date())
-    ).order_by(Booking.booking_date.desc(), Booking.start_time.desc()).all()
+    ).all()
     
-    # Group bookings by status for stats
-    booking_groups = {
-        'confirmed': [b for b in bookings if b.status == 'confirmed'],
-        'pending': [b for b in bookings if b.status == 'pending'],
-        'cancelled': [b for b in bookings if b.status == 'cancelled']
-    }
-    
-    # Prepare clean JSON data for JavaScript (with error handling)
-    bookings_json_data = []
-    for b in bookings:
+    for b in regular_bookings:
         try:
-            bookings_json_data.append({
+            all_bookings_data.append({
                 'id': b.id,
+                'type': 'regular',
                 'booking_date': b.booking_date.isoformat(),
                 'start_time': b.start_time.strftime('%H:%M'),
                 'end_time': b.end_time.strftime('%H:%M'),
                 'status': b.status,
                 'court': {
-                    'id': b.court.id if b.court else 0,
-                    'name': b.court.name if b.court else 'Unknown Court',
-                    'location': b.court.location if b.court else 'Unknown Location'
+                    'id': b.court.id,
+                    'name': b.court.name,
+                    'location': b.court.location or 'Unknown Location'
                 },
-                'total_cost': float(b.total_cost or b.calculate_cost())
+                'total_cost': float(b.total_cost or b.calculate_cost()),
+                'partner': None  # Regular bookings have no partner
             })
         except Exception as e:
-            # Skip problematic bookings but log the issue
-            print(f"Error processing booking {b.id}: {e}")
+            print(f"Error processing regular booking {b.id}: {e}")
             continue
     
-    bookings_json = json.dumps(bookings_json_data)
+    # 2. Shared bookings
+    shared_bookings = SharedBooking.query.filter(
+        or_(
+            SharedBooking.player1_id == player.id,
+            SharedBooking.player2_id == player.id
+        ),
+        SharedBooking.status.in_(['accepted', 'confirmed']),
+        SharedBooking.booking_date.between(start_date.date(), end_date.date())
+    ).all()
+    
+    for sb in shared_bookings:
+        try:
+            partner_name = sb.get_other_player(player.id).user.full_name
+            all_bookings_data.append({
+                'id': f"shared_{sb.id}",
+                'type': 'shared',
+                'booking_date': sb.booking_date.isoformat(),
+                'start_time': sb.start_time.strftime('%H:%M'),
+                'end_time': sb.end_time.strftime('%H:%M'),
+                'status': 'shared',
+                'court': {
+                    'id': sb.court.id,
+                    'name': sb.court.name,
+                    'location': sb.court.location
+                },
+                'total_cost': float(sb.total_cost),
+                'partner': partner_name
+            })
+        except Exception as e:
+            print(f"Error processing shared booking {sb.id}: {e}")
+            continue
+    
+    # Group for template stats (only regular bookings for stats)
+    booking_groups = {
+        'confirmed': [b for b in regular_bookings if b.status == 'confirmed'],
+        'pending': [b for b in regular_bookings if b.status == 'pending'],
+        'cancelled': [b for b in regular_bookings if b.status == 'cancelled']
+    }
+    
+    # Sort by date and time
+    all_bookings_data.sort(key=lambda x: (x['booking_date'], x['start_time']))
     
     return render_template('player/my_calendar.html',
                          player=player,
-                         bookings=bookings,
+                         bookings=regular_bookings,  # For template compatibility
                          booking_groups=booking_groups,
-                         bookings_json=bookings_json)
+                         bookings_json=json.dumps(all_bookings_data))
 
 @player_bp.route('/find-matches')
 @login_required

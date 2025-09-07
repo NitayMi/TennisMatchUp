@@ -113,8 +113,12 @@ class TennisCalendar {
         visibleBookings.forEach(booking => {
             const bookingDot = document.createElement('span');
             bookingDot.className = `booking-dot ${booking.status}`;
-            bookingDot.textContent = `${booking.start_time} ${booking.court.name}`;
-            bookingDot.title = `${booking.court.name} at ${booking.start_time} - ${booking.end_time}`;
+            
+            // UNIFIED DISPLAY LOGIC
+            const displayData = this.getBookingDisplayData(booking);
+            bookingDot.textContent = displayData.text;
+            bookingDot.title = displayData.tooltip;
+            
             bookingsContainer.appendChild(bookingDot);
         });
 
@@ -129,6 +133,23 @@ class TennisCalendar {
 
         return dayElement;
     }
+
+    getBookingDisplayData(booking) {
+        if (booking.type === 'shared') {
+            const partnerFirstName = booking.partner ? booking.partner.split(' ')[0] : 'Partner';
+            return {
+                text: `👥 ${booking.start_time}`,
+                tooltip: `Shared with ${booking.partner} at ${booking.court.name} (${booking.start_time} - ${booking.end_time})`
+            };
+        } else {
+            const courtShortName = booking.court.name.split(' ')[0];
+            return {
+                text: `🎾 ${booking.start_time}`,
+                tooltip: `${booking.court.name} at ${booking.start_time} - ${booking.end_time}`
+            };
+        }
+    }
+
 selectDate(day) {
     console.log('Day clicked:', day);
     
@@ -170,6 +191,7 @@ showQuickBookingModal(date, dateStr) {
     }
 }
 
+
     showBookingDetails(day) {
         // Use existing booking details modal (MVC compliant)
         const modal = document.getElementById('bookingModal');
@@ -185,15 +207,24 @@ showQuickBookingModal(date, dateStr) {
             });
             
             let contentHtml = `<h6 class="mb-3">${formattedDate}</h6>`;
-            
             day.bookings.forEach(booking => {
                 const statusColor = this.getStatusColor(booking.status);
+                
+                // Different display for shared bookings
+                let bookingTitle = booking.court.name;
+                let extraInfo = '';
+                
+                if (booking.status === 'shared') {
+                    bookingTitle = `👥 Shared: ${booking.court.name}`;
+                    extraInfo = `<br><small class="text-info">With: ${booking.partner}</small>`;
+                }
+                
                 contentHtml += `
                     <div class="card mb-2">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h6 class="card-title mb-1">${booking.court.name}</h6>
+                                    <h6 class="card-title mb-1">${bookingTitle}</h6>
                                     <p class="card-text">
                                         <small class="text-muted">
                                             <i class="fas fa-clock me-1"></i>
@@ -204,6 +235,7 @@ showQuickBookingModal(date, dateStr) {
                                             <i class="fas fa-map-marker-alt me-1"></i>
                                             ${booking.court.location || 'Location not specified'}
                                         </small>
+                                        ${extraInfo}
                                     </p>
                                 </div>
                                 <span class="badge bg-${statusColor}">${booking.status}</span>
@@ -212,7 +244,7 @@ showQuickBookingModal(date, dateStr) {
                     </div>
                 `;
             });
-            
+
             modalContent.innerHTML = contentHtml;
             
             // Show modal
@@ -308,7 +340,8 @@ showQuickBookingModal(date, dateStr) {
             'confirmed': 'success',
             'pending': 'warning',
             'cancelled': 'danger',
-            'rejected': 'secondary'
+            'rejected': 'secondary',
+            'shared': 'primary'  // הוספה חדשה
         };
         return statusColors[status] || 'secondary';
     }

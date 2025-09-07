@@ -189,14 +189,14 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="badge bg-info">{{ booking.get_duration_display() }}</span>
+                                    <span class="badge bg-info">{{ booking.start_time|format_time }} - {{ booking.end_time|format_time }}</span>
                                 </td>
                                 <td>
                                     <strong class="text-success">${{ booking.total_cost or booking.calculate_cost() }}</strong>
                                 </td>
                                 <td>
                                     <span class="badge bg-{{ 'warning' if booking.status == 'pending' else 'success' if booking.status == 'confirmed' else 'secondary' if booking.status == 'cancelled' else 'danger' }}">
-                                        {{ booking.get_status_display() }}
+                                        {{ booking.status|booking_status_badge|safe }}
                                     </span>
                                 </td>
                                 <td>

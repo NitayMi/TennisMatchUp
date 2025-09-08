@@ -121,3 +121,61 @@
     border-radius: 8px;
     font-weight: bold;
 }
+
+/* AI Action Center Styles - הוסף את זה בסוף static/css/player.css */
+
+.quick-action-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.quick-action-card:hover {
+    border-color: #28a745;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
+}
+
+.player-result-card,
+.court-result-card {
+    transition: all 0.3s ease;
+}
+
+.player-result-card:hover,
+.court-result-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+#ai-action-input {
+    font-size: 1rem;
+}
+
+#ai-action-input:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.ai-recommendation,
+.court-advice {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-left: 4px solid #28a745;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.recommendation-content,
+.advice-content {
+    margin-top: 10px;
+    line-height: 1.6;
+    color: #495057;
+}
+
+@media (max-width: 768px) {
+    .quick-action-card {
+        margin-bottom: 1rem;
+    }
+    
+    #ai-action-input {
+        font-size: 0.9rem;
+    }
+}

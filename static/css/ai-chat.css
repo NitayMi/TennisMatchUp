@@ -40,7 +40,7 @@
     padding: 15px;
     border-radius: 12px 12px 0 0;
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
 }
 

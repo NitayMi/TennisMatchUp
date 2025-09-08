@@ -153,13 +153,13 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <
-    <!-- AI Scripts - Add before closing </body> -->
+    <!-- AI Chat Widget -->
+    <!-- AI Scripts -->
     <script src="{{ url_for('static', filename='js/ai-chat.js') }}"></script>
     {% if session.user_type == 'player' %}
-    <script src="{{ url_for('static', filename='js/player-dashboard-ai.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard-ai.js') }}"></script>
     {% endif %}
-    
+
     {% block extra_scripts %}{% endblock %}
-</body>
-</html>
+    </body>
+    </html>

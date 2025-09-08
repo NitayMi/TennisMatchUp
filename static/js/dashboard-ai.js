@@ -1,6 +1,5 @@
 /**
  * AI Features for Player Dashboard
- * Separate file to avoid conflicts with existing dashboard code
  */
 class DashboardAI {
     constructor() {
@@ -82,10 +81,7 @@ class DashboardAI {
                         </div>
                     </div>
                 `;
-                // Re-attach event listener for the new button
-                document.getElementById('get-court-advice').addEventListener('click', () => {
-                    this.loadCourtRecommendations();
-                });
+                this.setupEventListeners(); // Re-attach event listeners
             } else {
                 container.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle"></i> Court advisor unavailable at the moment</div>';
             }
@@ -98,8 +94,5 @@ class DashboardAI {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Only initialize if we're on the player dashboard page
-    if (document.getElementById('ai-recommendations') || document.getElementById('court-recommendations')) {
-        new DashboardAI();
-    }
+    new DashboardAI();
 });

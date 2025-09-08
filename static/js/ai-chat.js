@@ -42,6 +42,10 @@ class TennisAIChat {
             this.toggleChat();
         });
         
+        document.getElementById('chat-close').addEventListener('click', () => {
+            this.toggleChat();
+        });
+        
         document.getElementById('chat-send').addEventListener('click', () => {
             this.sendMessage();
         });

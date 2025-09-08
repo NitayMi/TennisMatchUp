@@ -2,6 +2,10 @@
 
 {% block title %}Court Statistics - {{ court.name }} - TennisMatchUp{% endblock %}
 
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/owner.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <!-- Header -->
@@ -75,7 +79,7 @@
                         <h6>Availability</h6>
                         <p class="text-muted">Average availability across different time periods</p>
                         <div class="progress mb-2">
-                            <div class="progress-bar bg-success" style="width: '{{ availability.utilization_rate or 0 }}%'"></div>
+                            <div class="progress-bar bg-success progress-bar-utilization" data-width="{{ availability.utilization_rate or 0 }}"></div>
                         </div>
                         <small>{{ "%.1f"|format(availability.utilization_rate or 0) }}% booked this month</small>
                     </div>
@@ -153,4 +157,8 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/owner-stats.js') }}"></script>
 {% endblock %}

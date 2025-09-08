@@ -1,0 +1,44 @@
+/* Authentication Pages Styles */
+
+/* Large icon styling for auth forms */
+.auth-icon {
+    font-size: 3rem;
+}
+
+/* Player fields toggle */
+.player-fields-hidden {
+    display: none;
+}
+
+/* Form styling */
+.form-tennis {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border: 1px solid #e9ecef;
+}
+
+.form-tennis .form-control {
+    border-radius: 8px;
+    border: 2px solid #e9ecef;
+    padding: 12px 16px;
+    transition: all 0.3s ease;
+}
+
+.form-tennis .form-control:focus {
+    border-color: var(--tennis-green);
+    box-shadow: 0 0 0 0.2rem rgba(var(--tennis-green-rgb), 0.25);
+}
+
+.form-tennis .btn-tennis {
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.form-tennis .btn-tennis:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}

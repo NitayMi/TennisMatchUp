@@ -79,46 +79,7 @@
             </div>
         </div>
     </div>
-    <!-- AI Recommendations Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5><i class="fas fa-robot text-success"></i> AI Recommendations</h5>
-                    <button id="refresh-recommendations" class="btn btn-sm btn-outline-success">
-                        <i class="fas fa-refresh"></i> Refresh
-                    </button>
-                </div>
-                <div class="card-body">
-                    <div id="ai-recommendations">
-                        <div class="text-center">
-                            <div class="spinner-border text-success" role="status">
-                                <span class="sr-only">Loading AI recommendations...</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI Court Advisor Section -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-lightbulb text-warning"></i> Smart Court Recommendations</h5>
-                </div>
-                <div class="card-body">
-                    <div id="court-recommendations">
-                        <button id="get-court-advice" class="btn btn-success">
-                            Get Smart Court Recommendations
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    
     <!-- Main Content -->
     <div class="row">
         <!-- Upcoming Bookings -->
@@ -166,6 +127,49 @@
                             </a>
                         </div>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+                <!-- AI Recommendations Section - Add this BEFORE the existing content ends -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-robot text-success"></i> AI Recommendations</h5>
+                        <button id="refresh-recommendations" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="ai-recommendations">
+                            <div class="text-center">
+                                <div class="spinner-border text-success" role="status">
+                                    <span class="sr-only">Loading AI recommendations...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Court Advisor Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-lightbulb text-warning"></i> Smart Court Recommendations</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="court-recommendations">
+                            <div class="text-center">
+                                <button id="get-court-advice" class="btn btn-success">
+                                    <i class="fas fa-brain"></i> Get Smart Court Recommendations
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -271,4 +275,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}

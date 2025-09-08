@@ -1,27 +1,30 @@
 """
-AI Service for TennisMatchUp
-Integrates with Ollama for intelligent recommendations and chat assistance
+Clean AI Service for TennisMatchUp
+Pure business logic layer with proper separation of concerns
+RAG implementation with external knowledge base and prompt templates
 """
 import requests
 import json
+import os
 from datetime import datetime, timedelta
 from models.database import db
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
 from services.matching_engine import MatchingEngine
-from services.rule_engine import RuleEngine
+from services.ai_prompts import TennisPrompts
 
 class AIService:
-    """AI-powered services using Ollama"""
+    """AI-powered services using Ollama with RAG capabilities - Clean Architecture"""
     
     # Ollama configuration
     OLLAMA_BASE_URL = "http://localhost:11434"
-    DEFAULT_MODEL = "llama3.2"  # or "phi3" for lighter model
+    DEFAULT_MODEL = "phi3:mini"
+    KNOWLEDGE_BASE_PATH = "services/tennis_knowledge.json"
     
     @staticmethod
     def is_ollama_available():
-        """Check if Ollama is available"""
+        """Check if Ollama service is running and accessible"""
         try:
             response = requests.get(f"{AIService.OLLAMA_BASE_URL}/api/tags", timeout=5)
             return response.status_code == 200
@@ -29,13 +32,35 @@ class AIService:
             return False
     
     @staticmethod
-    def generate_response(prompt, model=None):
-        """Generate AI response using Ollama"""
+    def load_tennis_knowledge(category=None, subcategory=None):
+        """Load tennis knowledge base for RAG - Data Layer Access"""
+        try:
+            with open(AIService.KNOWLEDGE_BASE_PATH, 'r', encoding='utf-8') as f:
+                knowledge = json.load(f)
+            
+            if category is None:
+                return knowledge
+            
+            category_data = knowledge.get(category, {})
+            
+            if subcategory and isinstance(category_data, dict):
+                return category_data.get(subcategory, {})
+            
+            return category_data
+            
+        except FileNotFoundError:
+            return {"error": "Tennis knowledge base not found"}
+        except json.JSONDecodeError:
+            return {"error": "Invalid knowledge base format"}
+    
+    @staticmethod
+    def generate_response(prompt, model=None, temperature=0.7):
+        """Generate AI response using Ollama with enhanced error handling"""
         if not model:
             model = AIService.DEFAULT_MODEL
         
         if not AIService.is_ollama_available():
-            return "AI service is currently unavailable. Please try again later."
+            return "AI service is currently unavailable. Please ensure Ollama is running on localhost:11434."
         
         try:
             payload = {
@@ -43,7 +68,7 @@ class AIService:
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.7,
+                    "temperature": temperature,
                     "top_p": 0.9,
                     "max_tokens": 500
                 }
@@ -59,49 +84,115 @@ class AIService:
                 result = response.json()
                 return result.get('response', 'No response generated')
             else:
-                return "Error generating AI response"
+                return f"AI service error: HTTP {response.status_code}"
                 
         except Exception as e:
             return f"AI service error: {str(e)}"
     
     @staticmethod
     def get_personalized_recommendations(player_id):
-        """Get AI-powered personalized recommendations for a player"""
+        """RAG-Enhanced personalized recommendations for a player"""
         player = Player.query.get(player_id)
         if not player:
             return "Player not found"
         
-        # Gather player context
-        context = AIService._build_player_context(player_id)
+        # Build player data context
+        player_data = {
+            'name': player.user.full_name,
+            'skill_level': player.skill_level,
+            'playing_style': getattr(player, 'playing_style', 'all-court'),
+            'location': player.preferred_location
+        }
         
-        prompt = f"""
-        As a tennis coaching AI, provide personalized recommendations for a tennis player with the following profile:
+        # Gather activity context
+        context_data = AIService._build_player_context(player_id)
         
-        Player Profile:
-        - Name: {player.user.full_name}
-        - Skill Level: {player.skill_level}
-        - Preferred Location: {player.preferred_location}
-        - Availability: {player.availability}
-        - Recent Activity: {context['recent_bookings']} bookings in last 30 days
-        - Match Compatibility: {context['match_stats']['compatibility_rate']}% with other players
+        # Load relevant knowledge from external file
+        skill_knowledge = AIService.load_tennis_knowledge("skill_development", player.skill_level)
+        style_knowledge = AIService.load_tennis_knowledge("playing_styles", player_data['playing_style'])
+        booking_knowledge = AIService.load_tennis_knowledge("booking_strategies")
         
-        Recent Activity Summary:
-        {context['activity_summary']}
+        # Combine knowledge for RAG context
+        knowledge_base = json.dumps({
+            "skill_guidelines": skill_knowledge,
+            "playing_style_info": style_knowledge,
+            "booking_strategies": booking_knowledge
+        }, indent=2)
         
-        Please provide 3-4 specific, actionable recommendations to help this player:
-        1. Find better playing partners
-        2. Improve their booking strategy
-        3. Enhance their tennis experience
-        4. Grow their skills
+        # Generate prompt using template
+        prompt = TennisPrompts.get_personalized_recommendation_prompt(
+            player_data, context_data, knowledge_base
+        )
         
-        Keep recommendations practical and specific to their profile.
+        return AIService.generate_response(prompt, temperature=0.6)
+    
+    @staticmethod
+    def get_smart_court_recommendations(player_id, requested_date=None, time_preference=None):
+        """RAG-Enhanced smart court recommendations"""
+        player = Player.query.get(player_id)
+        if not player:
+            return "Player not found"
+        
+        # Get available courts
+        available_courts = Court.query.filter_by(is_active=True).limit(8).all()
+        if not available_courts:
+            return "No courts available at this time."
+        
+        # Build player data
+        player_data = {
+            'skill_level': player.skill_level,
+            'playing_style': getattr(player, 'playing_style', 'all-court'),
+            'location': player.preferred_location
+        }
+        
+        # Build court information with RAG context
+        court_knowledge = AIService.load_tennis_knowledge("court_types")
+        court_info_list = []
+        
+        for court in available_courts:
+            surface = court.surface.lower() if court.surface else 'hard'
+            surface_info = court_knowledge.get(surface, court_knowledge.get('hard', {}))
+            
+            court_info_list.append(f"""
+            Court: {court.name}
+            - Location: {court.location}
+            - Surface: {court.surface} ({surface_info.get('description', 'Standard court')})
+            - Rate: ${court.hourly_rate}/hour
+            - Ideal for: {', '.join(surface_info.get('recommended_for', ['all levels']))}
+            - Pros: {surface_info.get('pros', 'Good playing surface')}
+            - Best conditions: {surface_info.get('ideal_conditions', 'Any weather')}
+            """)
+        
+        # Build weather context
+        current_time = datetime.now()
+        season = "summer" if current_time.month in [6, 7, 8] else "winter" if current_time.month in [12, 1, 2] else "spring/fall"
+        
+        weather_context = f"""
+        - Season: {season}
+        - Requested Date: {requested_date or 'Today'}
+        - Time Preference: {time_preference or 'Flexible'}
         """
         
-        return AIService.generate_response(prompt)
+        # Load relevant knowledge
+        skill_knowledge = AIService.load_tennis_knowledge("skill_development", player.skill_level)
+        weather_knowledge = AIService.load_tennis_knowledge("booking_strategies", "weather_considerations")
+        
+        knowledge_base = json.dumps({
+            "court_types": court_knowledge,
+            "skill_requirements": skill_knowledge,
+            "weather_considerations": weather_knowledge
+        }, indent=2)
+        
+        # Generate prompt
+        prompt = TennisPrompts.get_court_recommendation_prompt(
+            player_data, '\n'.join(court_info_list), weather_context, knowledge_base
+        )
+        
+        return AIService.generate_response(prompt, temperature=0.5)
     
     @staticmethod
     def analyze_playing_pattern(player_id):
-        """Analyze player's booking and playing patterns"""
+        """RAG-Enhanced playing pattern analysis"""
         player = Player.query.get(player_id)
         if not player:
             return "Player not found"
@@ -111,316 +202,130 @@ class AIService:
             Booking.booking_date.desc()
         ).limit(20).all()
         
+        player_data = {
+            'name': player.user.full_name,
+            'skill_level': player.skill_level,
+            'playing_style': getattr(player, 'playing_style', 'all-court')
+        }
+        
         if not bookings:
-            return "Not enough data to analyze playing patterns. Book a few courts first!"
+            # Handle new players with RAG guidance
+            skill_knowledge = AIService.load_tennis_knowledge("skill_development", player.skill_level)
+            knowledge_base = json.dumps(skill_knowledge, indent=2)
+            
+            prompt = TennisPrompts.get_beginner_guidance_prompt(player_data, knowledge_base)
+            return AIService.generate_response(prompt)
         
         # Analyze patterns
-        patterns = AIService._analyze_booking_patterns(bookings)
+        booking_patterns = AIService._analyze_booking_patterns(bookings)
         
-        prompt = f"""
-        As a tennis analytics AI, analyze this player's playing patterns and provide insights:
+        # Load relevant knowledge
+        skill_knowledge = AIService.load_tennis_knowledge("skill_development", player.skill_level)
+        injury_knowledge = AIService.load_tennis_knowledge("injury_prevention")
+        booking_knowledge = AIService.load_tennis_knowledge("booking_strategies")
         
-        Player: {player.user.full_name} ({player.skill_level} level)
+        knowledge_base = json.dumps({
+            "skill_guidelines": skill_knowledge,
+            "injury_prevention": injury_knowledge,
+            "booking_optimization": booking_knowledge
+        }, indent=2)
         
-        Booking Patterns Analysis:
-        - Total bookings: {len(bookings)}
-        - Most common booking day: {patterns['preferred_day']}
-        - Most common time slot: {patterns['preferred_time']}
-        - Average booking duration: {patterns['avg_duration']} hours
-        - Preferred court types: {', '.join(patterns['court_types'])}
-        - Average cost per booking: ${patterns['avg_cost']}
-        - Cancellation rate: {patterns['cancellation_rate']}%
+        # Generate analysis prompt
+        prompt = TennisPrompts.get_playing_pattern_analysis_prompt(
+            player_data, booking_patterns, knowledge_base
+        )
         
-        Based on this data, provide:
-        1. Key insights about their playing habits
-        2. Suggestions for optimizing their booking strategy
-        3. Recommendations for trying new things
-        4. Tips for saving money or getting better value
-        
-        Keep the analysis encouraging and actionable.
-        """
-        
-        return AIService.generate_response(prompt)
+        return AIService.generate_response(prompt, temperature=0.6)
     
     @staticmethod
-    def suggest_court_improvements(court_id):
-        """AI suggestions for court owners to improve their courts"""
-        court = Court.query.get(court_id)
-        if not court:
-            return "Court not found"
+    def get_injury_prevention_advice(player_id):
+        """RAG-Enhanced injury prevention advice"""
+        player = Player.query.get(player_id)
+        if not player:
+            return "Player not found"
         
-        # Gather court performance data
-        context = AIService._build_court_context(court_id)
+        # Get activity level
+        recent_bookings = Booking.query.filter_by(player_id=player_id).filter(
+            Booking.booking_date >= datetime.now().date() - timedelta(days=30)
+        ).count()
         
-        prompt = f"""
-        As a tennis facility management AI, provide improvement suggestions for this court:
+        # Build player data
+        player_data = {
+            'skill_level': player.skill_level,
+            'playing_style': getattr(player, 'playing_style', 'all-court')
+        }
         
-        Court Information:
-        - Name: {court.name}
-        - Location: {court.location}
-        - Type: {court.court_type}
-        - Surface: {court.surface}
-        - Hourly Rate: ${court.hourly_rate}
+        # Load injury prevention knowledge
+        injury_knowledge = AIService.load_tennis_knowledge("injury_prevention")
+        skill_knowledge = AIService.load_tennis_knowledge("skill_development", player.skill_level)
         
-        Performance Metrics:
-        - Total bookings: {context['total_bookings']}
-        - Booking confirmation rate: {context['confirmation_rate']}%
-        - Average rating: {context['avg_rating']}/5.0
-        - Recent activity: {context['recent_bookings']} bookings last 30 days
-        - Utilization rate: {context['utilization_rate']}%
-        - Competition: {context['nearby_courts']} similar courts in area
+        knowledge_base = json.dumps({
+            "injury_prevention": injury_knowledge,
+            "skill_level_considerations": skill_knowledge
+        }, indent=2)
         
-        Provide specific recommendations to:
-        1. Increase booking rates
-        2. Improve customer satisfaction
-        3. Optimize pricing strategy
-        4. Enhance court appeal
+        # Generate prompt
+        prompt = TennisPrompts.get_injury_prevention_prompt(
+            player_data, recent_bookings, knowledge_base
+        )
         
-        Consider market conditions and competition.
-        """
-        
-        return AIService.generate_response(prompt)
+        return AIService.generate_response(prompt, temperature=0.5)
     
     @staticmethod
-    def generate_smart_match_description(player1_id, player2_id):
-        """Generate AI description for why two players are a good match"""
+    def analyze_player_compatibility(player1_id, player2_id):
+        """RAG-Enhanced player compatibility analysis"""
         player1 = Player.query.get(player1_id)
         player2 = Player.query.get(player2_id)
         
         if not player1 or not player2:
-            return "Player not found"
+            return "One or both players not found"
         
-        # Get compatibility analysis
-        validation = RuleEngine.validate_player_matching(player1_id, player2_id)
-        if not validation['valid']:
-            return f"Not a compatible match: {validation['reason']}"
+        # Build player data
+        player1_data = {
+            'name': player1.user.full_name,
+            'skill_level': player1.skill_level,
+            'playing_style': getattr(player1, 'playing_style', 'all-court')
+        }
         
-        prompt = f"""
-        As a tennis matchmaking AI, explain why these two players would be great playing partners:
+        player2_data = {
+            'name': player2.user.full_name,
+            'skill_level': player2.skill_level,
+            'playing_style': getattr(player2, 'playing_style', 'all-court')
+        }
         
-        Player 1: {player1.user.full_name}
-        - Skill: {player1.skill_level}
-        - Location: {player1.preferred_location}
-        - Availability: {player1.availability}
+        # Calculate compatibility using existing MatchingEngine
+        compatibility_score = MatchingEngine.calculate_compatibility_score(player1, player2)
         
-        Player 2: {player2.user.full_name}
-        - Skill: {player2.skill_level}
-        - Location: {player2.preferred_location}
-        - Availability: {player2.availability}
+        # Load playing style knowledge
+        style_knowledge = AIService.load_tennis_knowledge("playing_styles")
+        skill_knowledge = AIService.load_tennis_knowledge("skill_development")
         
-        Compatibility Score: {validation['compatibility_score']}/100
+        knowledge_base = json.dumps({
+            "playing_styles": style_knowledge,
+            "skill_development": skill_knowledge
+        }, indent=2)
         
-        Write a friendly, encouraging message (2-3 sentences) explaining why they should play together.
-        Focus on what they have in common and how they could enjoy playing together.
-        """
+        # Generate prompt
+        prompt = TennisPrompts.get_compatibility_analysis_prompt(
+            player1_data, player2_data, compatibility_score, knowledge_base
+        )
         
-        response = AIService.generate_response(prompt)
-        return response if response else "You two seem like a great match - similar skill levels and compatible schedules!"
-    
-    @staticmethod
-    def generate_booking_confirmation_message(booking_id):
-        """Generate personalized booking confirmation message"""
-        booking = Booking.query.get(booking_id)
-        if not booking:
-            return "Booking not found"
-        
-        prompt = f"""
-        Generate a friendly, enthusiastic booking confirmation message for:
-        
-        Player: {booking.player.user.full_name}
-        Court: {booking.court.name}
-        Date: {booking.booking_date}
-        Time: {booking.start_time} - {booking.end_time}
-        Location: {booking.court.location}
-        
-        Include:
-        - Confirmation details
-        - A positive, encouraging tone
-        - Brief playing tip or motivation
-        - Reminder about court policies
-        
-        Keep it concise but warm and professional.
-        """
-        
-        return AIService.generate_response(prompt)
+        return AIService.generate_response(prompt, temperature=0.6)
     
     @staticmethod
     def analyze_system_trends():
-        """Analyze overall system trends for admin dashboard"""
+        """RAG-Enhanced system trends analysis for admin dashboard"""
         if not AIService.is_ollama_available():
             return "AI analysis unavailable - Ollama not running"
         
         # Gather system statistics
-        stats = AIService._gather_system_stats()
+        system_stats = AIService._gather_system_stats()
         
-        prompt = f"""
-        As a tennis platform analytics AI, analyze these system trends and provide insights:
+        # Load business knowledge
+        booking_knowledge = AIService.load_tennis_knowledge("booking_strategies")
         
-        System Statistics (Last 30 Days):
-        - New users: {stats['new_users']}
-        - Total bookings: {stats['total_bookings']}
-        - Revenue: ${stats['revenue']}
-        - Most popular locations: {', '.join(stats['popular_locations'])}
-        - Peak booking times: {', '.join(stats['peak_times'])}
-        - Average booking duration: {stats['avg_duration']} hours
-        - User retention rate: {stats['retention_rate']}%
-        
-        Provide:
-        1. Key trends and insights
-        2. Areas of concern or opportunity
-        3. Recommendations for platform improvements
-        4. Predictions for next month
-        
-        Focus on actionable business insights.
-        """
-        
-        return AIService.generate_response(prompt)
-    
-    @staticmethod
-    def _build_player_context(player_id):
-        """Build comprehensive context about a player for AI analysis"""
-        player = Player.query.get(player_id)
-        
-        # Get recent bookings
-        recent_bookings = Booking.query.filter_by(player_id=player_id).filter(
-            Booking.created_at >= datetime.now() - timedelta(days=30)
-        ).count()
-        
-        # Get match statistics
-        match_stats = MatchingEngine.get_match_statistics(player_id)
-        
-        # Build activity summary
-        activity_summary = f"Player has made {recent_bookings} bookings in the last 30 days"
-        if recent_bookings == 0:
-            activity_summary += " (inactive)"
-        elif recent_bookings > 8:
-            activity_summary += " (very active)"
-        elif recent_bookings > 4:
-            activity_summary += " (active)"
-        
-        return {
-            'recent_bookings': recent_bookings,
-            'match_stats': match_stats,
-            'activity_summary': activity_summary
-        }
-    
-    @staticmethod
-    def _analyze_booking_patterns(bookings):
-        """Analyze booking patterns for AI insights"""
-        if not bookings:
-            return {}
-        
-        # Day of week analysis
-        days = [b.booking_date.strftime('%A') for b in bookings]
-        preferred_day = max(set(days), key=days.count) if days else 'N/A'
-        
-        # Time analysis
-        times = [b.start_time.strftime('%H:00') for b in bookings]
-        preferred_time = max(set(times), key=times.count) if times else 'N/A'
-        
-        # Duration analysis
-        durations = [(b.end_time.hour - b.start_time.hour) for b in bookings]
-        avg_duration = sum(durations) / len(durations) if durations else 0
-        
-        # Court type analysis
-        court_types = [b.court.court_type for b in bookings if b.court]
-        unique_court_types = list(set(court_types)) if court_types else []
-        
-        # Cost analysis
-        costs = [b.court.hourly_rate * (b.end_time.hour - b.start_time.hour) for b in bookings if b.court]
-        avg_cost = sum(costs) / len(costs) if costs else 0
-        
-        # Cancellation analysis
-        cancelled = len([b for b in bookings if b.status == 'cancelled'])
-        cancellation_rate = (cancelled / len(bookings) * 100) if bookings else 0
-        
-        return {
-            'preferred_day': preferred_day,
-            'preferred_time': preferred_time,
-            'avg_duration': round(avg_duration, 1),
-            'court_types': unique_court_types,
-            'avg_cost': round(avg_cost, 2),
-            'cancellation_rate': round(cancellation_rate, 1)
-        }
-    
-    @staticmethod
-    def _build_court_context(court_id):
-        """Build comprehensive context about a court for AI analysis"""
-        # Get court performance metrics
-        total_bookings = Booking.query.filter_by(court_id=court_id).count()
-        confirmed_bookings = Booking.query.filter_by(court_id=court_id, status='confirmed').count()
-        recent_bookings = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.created_at >= datetime.now() - timedelta(days=30)
-        ).count()
-        
-        confirmation_rate = (confirmed_bookings / max(1, total_bookings)) * 100
-        utilization_rate = min(100, (recent_bookings / 30) * 100)  # Simplified calculation
-        
-        # Get nearby competition
-        court = Court.query.get(court_id)
-        nearby_courts = Court.query.filter(
-            Court.location.ilike(f'%{court.location}%'),
-            Court.id != court_id
-        ).count() if court else 0
-        
-        return {
-            'total_bookings': total_bookings,
-            'confirmation_rate': round(confirmation_rate, 1),
-            'recent_bookings': recent_bookings,
-            'utilization_rate': round(utilization_rate, 1),
-            'nearby_courts': nearby_courts,
-            'avg_rating': 4.2  # Would calculate from real reviews
-        }
-    
-    @staticmethod
-    def _gather_system_stats():
-        """Gather system-wide statistics for trend analysis"""
-        thirty_days_ago = datetime.now() - timedelta(days=30)
-        
-        new_users = User.query.filter(User.created_at >= thirty_days_ago).count()
-        total_bookings = Booking.query.filter(Booking.created_at >= thirty_days_ago).count()
-        
-        # Revenue calculation (simplified)
-        from sqlalchemy import func
-        revenue_query = db.session.query(
-            func.sum(Court.hourly_rate * func.extract('hour', Booking.end_time - Booking.start_time))
-        ).join(Booking).filter(
-            Booking.status == 'confirmed',
-            Booking.created_at >= thirty_days_ago
-        ).scalar()
-        revenue = revenue_query or 0
-        
-        # Popular locations
-        location_stats = db.session.query(
-            Court.location,
-            func.count(Booking.id).label('booking_count')
-        ).join(Booking).filter(
-            Booking.created_at >= thirty_days_ago
-        ).group_by(Court.location).order_by(
-            func.count(Booking.id).desc()
-        ).limit(3).all()
-        
-        popular_locations = [loc.location for loc in location_stats]
-        
-        # Peak times
-        time_stats = db.session.query(
-            func.extract('hour', Booking.start_time).label('hour'),
-            func.count(Booking.id).label('booking_count')
-        ).filter(
-            Booking.created_at >= thirty_days_ago
-        ).group_by(func.extract('hour', Booking.start_time)).order_by(
-            func.count(Booking.id).desc()
-        ).limit(3).all()
-        
-        peak_times = [f"{int(time.hour)}:00" for time in time_stats]
-        
-        return {
-            'new_users': new_users,
-            'total_bookings': total_bookings,
-            'revenue': round(revenue, 2),
-            'popular_locations': popular_locations or ['N/A'],
-            'peak_times': peak_times or ['N/A'],
-            'avg_duration': 1.5,  # Would calculate from real data
-            'retention_rate': 75  # Would calculate from real user activity
-        }
+        knowledge_base = json.dumps({
+            "booking_strategies": booking_knowledge,
+            "business_intelligence": {
+                "industry_standards": "Tennis facilities typically see 60-80% utilization",
+                "peak

@@ -35,14 +35,41 @@ def dashboard():
     stats_result = BookingService.get_booking_statistics(player.id, 'player', period_days=30)
     stats = stats_result.get('statistics', {}) if stats_result['success'] else {}
     
-    # Get recent bookings using service
-    bookings_result = BookingService.get_player_bookings(player.id, limit=5)
-    recent_bookings = bookings_result.get('bookings', []) if bookings_result['success'] else []
+    # Get recent bookings using service - but we need actual booking objects for template
+    today = datetime.now().date()
+    
+    # Get actual Booking objects instead of dictionaries
+    upcoming_bookings = Booking.query.join(Court).filter(
+        Booking.player_id == player.id,
+        Booking.booking_date >= today
+    ).order_by(Booking.booking_date.asc()).limit(10).all()
+    
+    recent_bookings = Booking.query.join(Court).filter(
+        Booking.player_id == player.id,
+        Booking.booking_date < today
+    ).order_by(Booking.booking_date.desc()).limit(5).all()
+    
+    # Get matches and messages
+    try:
+        recent_matches = MatchingEngine.find_matches(player.id, limit=5)
+    except:
+        recent_matches = []
+    
+    try:
+        unread_messages = Message.query.filter_by(
+            recipient_id=player.user_id, 
+            is_read=False
+        ).count()
+    except:
+        unread_messages = 0
     
     return render_template('player/dashboard.html', 
                          player=player,
                          stats=stats,
-                         recent_bookings=recent_bookings)
+                         upcoming_bookings=upcoming_bookings,
+                         recent_bookings=recent_bookings,
+                         recent_matches=recent_matches,
+                         unread_messages=unread_messages)
 
 
 @player_bp.route('/book-court')

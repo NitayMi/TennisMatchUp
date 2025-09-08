@@ -12,10 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userTypeSelect && playerFields) {
         userTypeSelect.addEventListener('change', function() {
             if (this.value === 'player') {
-                playerFields.style.display = 'block';
+                playerFields.classList.remove('player-fields-hidden');
                 if (skillLevel) skillLevel.required = true;
             } else {
-                playerFields.style.display = 'none';
+                playerFields.classList.add('player-fields-hidden');
                 if (skillLevel) skillLevel.required = false;
             }
         });

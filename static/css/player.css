@@ -1,0 +1,123 @@
+/* Player Dashboard Styles */
+
+/* Match quality indicator */
+.quality-fill {
+    transition: width 0.3s ease;
+}
+
+/* Compatibility score styling */
+.compatibility-meter {
+    background: #f8f9fa;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    margin: 0.5rem 0;
+}
+
+.quality-bar {
+    height: 8px;
+    background: linear-gradient(90deg, #dc3545 0%, #ffc107 50%, #28a745 100%);
+    border-radius: 10px;
+}
+
+/* Find matches specific styles */
+.match-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.match-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.compatibility-score {
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.match-details {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+/* Player calendar styles */
+.calendar-container {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background: #dee2e6;
+}
+
+.calendar-day {
+    background: white;
+    min-height: 80px;
+    padding: 8px 4px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.calendar-day:hover {
+    background: #f8f9fa;
+    border-color: var(--tennis-green);
+}
+
+.calendar-day.today {
+    background: #e3f2fd;
+    font-weight: bold;
+}
+
+.calendar-day.has-bookings {
+    background: #f0f8f0;
+}
+
+.day-number {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.day-bookings {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.booking-dot {
+    font-size: 0.7rem;
+    padding: 1px 4px;
+    border-radius: 3px;
+    color: white;
+    text-align: center;
+}
+
+.booking-dot.confirmed {
+    background-color: #28a745;
+}
+
+.booking-dot.pending {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.booking-dot.cancelled {
+    background-color: #dc3545;
+}
+
+.booking-count {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    background: var(--tennis-green);
+    color: white;
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    border-radius: 8px;
+    font-weight: bold;
+}

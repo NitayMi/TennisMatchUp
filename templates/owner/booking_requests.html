@@ -2,6 +2,10 @@
 
 {% block title %}Booking Requests - TennisMatchUp{% endblock %}
 
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/owner.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <!-- Header -->
 <div class="bg-tennis-green text-white py-4">
@@ -101,7 +105,7 @@
                         <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
                             <i class="fas fa-times me-1"></i>Clear
                         </button>
-                        <button class="btn btn-success btn-sm" onclick="bulkApprove()" id="bulk-approve-btn" style="display: none;">
+                        <button class="btn btn-success btn-sm" onclick="bulkApprove()" id="bulk-approve-btn" class="hidden">
                             <i class="fas fa-check me-1"></i>Approve Selected
                         </button>
                     </div>

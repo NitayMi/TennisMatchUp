@@ -296,3 +296,25 @@
 .step-item:hover {
     transform: translateY(-5px);
 }
+
+/* Step Number Circle */
+.step-number {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+/* Hero Illustration Icons */
+.hero-illustration .fa-users {
+    font-size: 8rem;
+    opacity: 0.3;
+}
+
+.hero-illustration .tennis-ball-floating {
+    font-size: 2rem;
+    color: var(--tennis-yellow);
+    animation: bounce 2s infinite;
+    top: 20%;
+    right: 30%;
+}

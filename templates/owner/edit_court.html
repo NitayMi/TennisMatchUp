@@ -2,6 +2,10 @@
 
 {% block title %}Edit {{ court.name }} - TennisMatchUp{% endblock %}
 
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/owner.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
 <!-- Header -->
 <div class="bg-tennis-green text-white py-4">
@@ -281,7 +285,7 @@
                     <!-- Hidden data for JavaScript -->
                     <div data-court-name="{{ court.name|e }}" 
                     data-delete-url="{{ url_for('owner.delete_court', court_id=court.id) }}"
-                    style="display: none;"></div>
+                    class="hidden"></div>
                     
                     <div class="d-flex justify-content-between align-items-center">
                         <div>

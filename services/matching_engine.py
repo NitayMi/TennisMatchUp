@@ -104,7 +104,7 @@ class MatchingEngine:
                 'player': match_player,
                 'user': match_player.user,
                 'compatibility_score': compatibility_score,
-                'distance': real_distance,
+                'distance_km': real_distance,
                 'common_interests': MatchingEngine._find_smart_common_interests(current_player, match_player),
                 'recent_activity': MatchingEngine._get_activity_summary(match_player.id),
                 'match_quality': MatchingEngine._determine_match_quality(compatibility_score),

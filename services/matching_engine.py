@@ -10,6 +10,7 @@ from models.court import Court, Booking
 from services.rule_engine import RuleEngine
 from services.geo_service import GeoService
 from sqlalchemy import func, and_, or_
+from sqlalchemy.orm import joinedload
 import random
 import time
 
@@ -29,7 +30,7 @@ class MatchingEngine:
             db.session.commit()
         
         # Build base query
-        query = Player.query.join(User).filter(
+        query = Player.query.options(joinedload(Player.user)).join(User).filter(
             Player.id != player_id,  # Exclude self
             User.is_active == True
         )

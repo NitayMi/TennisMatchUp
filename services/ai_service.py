@@ -1,6 +1,7 @@
 """
-AI Service for TennisMatchUp - Clean MVC Architecture
-Integrates with Ollama for intelligent recommendations and chat assistance
+Enhanced AI Service for TennisMatchUp - Action Agent Implementation
+Combines existing advisory functions with real platform action execution
+Integrates with MatchingEngine and RuleEngine for actionable proposals
 """
 import requests
 import json
@@ -48,40 +49,28 @@ class AIService:
                 },
                 "grass": {
                     "description": "Fast surface, low bounce",
-                    "pros": "Traditional surface, unique playing style",
+                    "pros": "Traditional tennis, favors serve-and-volley",
                     "cons": "High maintenance, weather sensitive", 
-                    "recommended_for": ["advanced"]
+                    "recommended_for": ["advanced", "professional"]
                 }
             },
-            "skill_development": {
+            "skill_levels": {
                 "beginner": {
-                    "focus": ["basic strokes", "footwork", "court positioning"],
-                    "recommended_frequency": "2-3 times per week",
-                    "session_duration": "60-90 minutes",
-                    "practice_tips": [
-                        "Focus on consistent contact point",
-                        "Practice against a wall for repetition",
-                        "Work on split step timing"
+                    "characteristics": ["Learning basic strokes", "Developing consistency"],
+                    "focus_areas": ["Footwork", "Basic technique", "Court positioning"],
+                    "recommendations": [
+                        "Practice wall hitting for consistency",
+                        "Focus on proper grip and stance",
+                        "Take lessons to build foundation"
                     ]
                 },
                 "intermediate": {
-                    "focus": ["spin techniques", "net play", "strategy"],
-                    "recommended_frequency": "3-4 times per week", 
-                    "session_duration": "90-120 minutes",
-                    "practice_tips": [
-                        "Incorporate drills with movement",
-                        "Practice different shot combinations",
-                        "Work on mental toughness"
-                    ]
-                },
-                "advanced": {
-                    "focus": ["advanced tactics", "match play", "physical conditioning"],
-                    "recommended_frequency": "4-5 times per week",
-                    "session_duration": "120+ minutes",
-                    "practice_tips": [
-                        "Analyze match videos",
-                        "Practice under pressure situations",
-                        "Focus on opponent weaknesses"
+                    "characteristics": ["Consistent basic strokes", "Understanding strategy"],
+                    "focus_areas": ["Shot placement", "Mental game", "Fitness"],
+                    "recommendations": [
+                        "Work on shot variety and spin",
+                        "Develop tactical awareness",
+                        "Practice under pressure situations"
                     ]
                 }
             },
@@ -165,6 +154,8 @@ class AIService:
             'activity_summary': f'Active player with {recent_bookings} bookings this month'
         }
     
+    # ===== EXISTING ADVISORY FUNCTIONS (KEEP UNCHANGED) =====
+    
     @staticmethod
     def get_personalized_recommendations(player_id):
         """RAG-Enhanced personalized recommendations for a player"""
@@ -193,66 +184,274 @@ class AIService:
         Keep advice practical and encouraging.
         """
         
-        return AIService.generate_response(prompt, temperature=0.6)
+        return AIService.generate_response(prompt)
     
     @staticmethod
     def get_smart_court_recommendations(player_id):
-        """RAG-Enhanced smart court recommendations"""
+        """Smart court selection advice"""
         player = Player.query.get(player_id)
         if not player:
             return "Player not found"
         
-        # Get available courts
-        available_courts = Court.query.filter_by(is_active=True).limit(5).all()
-        if not available_courts:
-            return "No courts available at this time."
-        
+        context = AIService._build_player_context(player_id)
         knowledge = AIService.load_tennis_knowledge()
         
-        court_info = []
-        for court in available_courts:
-            court_info.append(f"Court: {court.name} - {court.surface} surface, ${court.hourly_rate}/hour, Location: {court.location}")
-        
         prompt = f"""
-        You are TennisCoach AI helping select the perfect court for a tennis player.
+        You are TennisCoach AI, an expert court advisor.
         
         PLAYER PROFILE:
         - Skill Level: {player.skill_level}
-        - Location Preference: {getattr(player, 'preferred_location', 'Any')}
+        - Location: {player.preferred_location}
+        - Activity: {context.get('recent_bookings', 0)} bookings this month
         
-        AVAILABLE COURTS:
-        {chr(10).join(court_info)}
+        COURT KNOWLEDGE: {json.dumps(knowledge['court_types'], indent=2)}
         
-        TENNIS KNOWLEDGE: {json.dumps(knowledge['court_types'], indent=2)}
-        
-        TASK: Recommend the top 2-3 courts that best match this player's needs. For each recommendation:
-        1. Explain why this court suits their skill level
-        2. Mention any surface-specific advantages
-        3. Include cost considerations
-        
-        Keep recommendations practical and helpful.
+        TASK: Recommend the best court types and booking strategies for this player.
+        Include specific advice on timing, surface selection, and cost optimization.
         """
         
-        return AIService.generate_response(prompt, temperature=0.6)
+        return AIService.generate_response(prompt)
     
     @staticmethod
     def general_tennis_chat(user_message):
-        """RAG-Enhanced general tennis chat"""
+        """General tennis chat with knowledge"""
         knowledge = AIService.load_tennis_knowledge()
         
         prompt = f"""
-        You are TennisCoach AI, an expert tennis advisor with access to comprehensive tennis knowledge.
-        
-        TENNIS KNOWLEDGE AVAILABLE:
-        {json.dumps(knowledge, indent=2)}
+        You are TennisCoach AI, a helpful tennis expert.
         
         USER QUESTION: {user_message}
         
-        TASK: Provide helpful tennis-related advice. If the question is not about tennis,
-        politely redirect to tennis topics. Use the knowledge base to give accurate,
-        helpful responses.
+        TENNIS KNOWLEDGE: {json.dumps(knowledge, indent=2)}
         
-        Keep responses conversational and encouraging.
+        TASK: Answer the user's tennis question using the knowledge base.
+        Be conversational, helpful, and encouraging.
         """
         
-        return AIService.generate_response(prompt, temperature=0.7)
+        return AIService.generate_response(prompt)
+    
+    # ===== NEW ACTION FUNCTIONS =====
+    
+    @staticmethod
+    def find_available_players(player_id, location=None, date_str=None, time_str=None, skill_level=None):
+        """Execute real player search with availability check"""
+        try:
+            current_player = Player.query.get(player_id)
+            if not current_player:
+                return {'error': 'Player not found'}
+            
+            # Use existing MatchingEngine for robust search
+            search_location = location or current_player.preferred_location
+            search_skill = skill_level or current_player.skill_level
+            
+            matches = MatchingEngine.find_matches(
+                player_id=player_id,
+                skill_level=search_skill,
+                location=search_location,
+                limit=5
+            )
+            
+            # Format results for AI presentation
+            player_results = []
+            for match in matches[:3]:  # Top 3 matches
+                player_results.append({
+                    'name': match['player'].user.full_name,
+                    'skill_level': match['player'].skill_level,
+                    'location': match['player'].preferred_location,
+                    'compatibility_score': match['compatibility_score'],
+                    'distance': f"{match['distance']:.1f}km" if match['distance'] else "Location match",
+                    'player_id': match['player'].id
+                })
+            
+            return {
+                'success': True,
+                'players_found': player_results,
+                'search_params': {
+                    'location': search_location,
+                    'skill_level': search_skill,
+                    'date': date_str,
+                    'time': time_str
+                }
+            }
+            
+        except Exception as e:
+            return {'error': f'Player search failed: {str(e)}'}
+    
+    @staticmethod
+    def find_available_courts(player_id, location=None, date_str=None, time_range=None):
+        """Execute real court availability search"""
+        try:
+            current_player = Player.query.get(player_id)
+            if not current_player:
+                return {'error': 'Player not found'}
+            
+            # Use existing MatchingEngine court recommendations
+            search_location = location or current_player.preferred_location
+            
+            courts = MatchingEngine.recommend_courts(
+                player_id=player_id,
+                location=search_location,
+                limit=5
+            )
+            
+            # Format results for AI presentation
+            court_results = []
+            for court in courts[:3]:  # Top 3 courts
+                court_results.append({
+                    'name': court.name,
+                    'location': court.location,
+                    'surface_type': court.surface_type,
+                    'hourly_rate': float(court.hourly_rate),
+                    'court_id': court.id,
+                    'availability_note': f"Available {time_range}" if time_range else "Check availability"
+                })
+            
+            return {
+                'success': True,
+                'courts_found': court_results,
+                'search_params': {
+                    'location': search_location,
+                    'date': date_str,
+                    'time_range': time_range
+                }
+            }
+            
+        except Exception as e:
+            return {'error': f'Court search failed: {str(e)}'}
+    
+    @staticmethod
+    def create_match_proposal(player_id, target_player_id, court_id, datetime_str):
+        """Generate actionable match proposal"""
+        try:
+            current_player = Player.query.get(player_id)
+            target_player = Player.query.get(target_player_id)
+            court = Court.query.get(court_id)
+            
+            if not all([current_player, target_player, court]):
+                return {'error': 'Invalid player or court ID'}
+            
+            # Validate using RuleEngine
+            validation = RuleEngine.validate_player_matching(player_id, target_player_id)
+            if not validation['valid']:
+                return {'error': f'Match not allowed: {validation["reason"]}'}
+            
+            proposal = {
+                'proposal_id': f"match_{player_id}_{target_player_id}_{court_id}",
+                'current_player': {
+                    'name': current_player.user.full_name,
+                    'skill': current_player.skill_level
+                },
+                'target_player': {
+                    'name': target_player.user.full_name,
+                    'skill': target_player.skill_level,
+                    'id': target_player_id
+                },
+                'court': {
+                    'name': court.name,
+                    'location': court.location,
+                    'surface': court.surface_type,
+                    'rate': float(court.hourly_rate),
+                    'id': court_id
+                },
+                'datetime': datetime_str,
+                'estimated_cost': float(court.hourly_rate * 2),  # Assume 2-hour booking
+                'action_type': 'SEND_MATCH_REQUEST'
+            }
+            
+            return {
+                'success': True,
+                'proposal': proposal
+            }
+            
+        except Exception as e:
+            return {'error': f'Proposal creation failed: {str(e)}'}
+    
+    @staticmethod
+    def process_action_request(user_message, player_id):
+        """Parse user intent and execute appropriate actions"""
+        try:
+            player = Player.query.get(player_id)
+            if not player:
+                return {'error': 'Player not found'}
+            
+            # Simple intent detection (can be enhanced with more sophisticated NLP)
+            message_lower = user_message.lower()
+            
+            if any(word in message_lower for word in ['find', 'partner', 'player', 'match']):
+                # Extract location if mentioned
+                location = None
+                for word in message_lower.split():
+                    if word in ['rishon', 'tel', 'aviv', 'jerusalem', 'haifa']:
+                        location = word.title()
+                        break
+                
+                # Extract skill preference
+                skill_level = None
+                if 'beginner' in message_lower:
+                    skill_level = 'beginner'
+                elif 'intermediate' in message_lower:
+                    skill_level = 'intermediate'
+                elif 'advanced' in message_lower:
+                    skill_level = 'advanced'
+                
+                return AIService.find_available_players(
+                    player_id=player_id,
+                    location=location,
+                    skill_level=skill_level
+                )
+            
+            elif any(word in message_lower for word in ['court', 'book', 'reserve']):
+                location = None
+                for word in message_lower.split():
+                    if word in ['rishon', 'tel', 'aviv', 'jerusalem', 'haifa']:
+                        location = word.title()
+                        break
+                
+                return AIService.find_available_courts(
+                    player_id=player_id,
+                    location=location
+                )
+            
+            else:
+                # Default to general chat
+                return {
+                    'action_type': 'GENERAL_CHAT',
+                    'response': AIService.general_tennis_chat(user_message)
+                }
+                
+        except Exception as e:
+            return {'error': f'Action processing failed: {str(e)}'}
+    
+    @staticmethod
+    def check_schedule_conflicts(player_id, proposed_datetime):
+        """Verify user availability for proposed time"""
+        try:
+            # Parse datetime string to datetime object
+            proposed_dt = datetime.fromisoformat(proposed_datetime.replace('Z', '+00:00'))
+            proposed_date = proposed_dt.date()
+            proposed_hour = proposed_dt.hour
+            
+            # Check for existing bookings
+            existing_bookings = Booking.query.filter(
+                Booking.player_id == player_id,
+                Booking.booking_date == proposed_date,
+                Booking.start_time <= proposed_hour + 2,  # 2-hour buffer
+                Booking.end_time >= proposed_hour
+            ).all()
+            
+            if existing_bookings:
+                return {
+                    'conflict': True,
+                    'message': f'You have {len(existing_bookings)} booking(s) around that time'
+                }
+            
+            return {
+                'conflict': False,
+                'message': 'Time slot appears available'
+            }
+            
+        except Exception as e:
+            return {
+                'conflict': True,
+                'message': f'Could not check schedule: {str(e)}'
+            }

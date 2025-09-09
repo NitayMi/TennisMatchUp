@@ -12,9 +12,11 @@ from .shared_booking_service import SharedBookingService
 from .revenue_service import RevenueService
 from .report_service import ReportService
 from .system_health_service import SystemHealthService
+from .ai_action_service import AIActionService
+from .ai_action_service import AIActionService
 
 __all__ = [
     'RuleEngine', 'MatchingEngine', 'EmailService', 'GeoService',
     'BookingService', 'SharedBookingService', 'RevenueService', 
-    'ReportService', 'SystemHealthService'
+    'ReportService', 'SystemHealthService', 'AIActionService'
 ]

@@ -350,7 +350,259 @@ class DashboardAI {
             alert('Error booking court. Please try again.');
         }
     }
+    // ADD these methods to the existing DashboardAI class
+
+    setupEventListeners() {
+        // AI Recommendations refresh button
+        const refreshBtn = document.getElementById('refresh-recommendations');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadRecommendations();
+            });
+        }
+        
+        // Court advisor button
+        const courtAdviceBtn = document.getElementById('get-court-advice');
+        if (courtAdviceBtn) {
+            courtAdviceBtn.addEventListener('click', () => {
+                this.loadCourtRecommendations();
+            });
+        }
+        
+        // NEW: Quick action buttons
+        this.setupQuickActionButtons();
+        
+        // NEW: Tell AI form
+        this.setupTellAIForm();
+    }
+
+    setupQuickActionButtons() {
+        // Find Partner Now button
+        const findPartnerBtn = document.querySelector('[onclick*="find_partner_now"]');
+        if (findPartnerBtn) {
+            findPartnerBtn.removeAttribute('onclick');
+            findPartnerBtn.addEventListener('click', () => {
+                this.handleQuickAction('find_partner_now');
+            });
+        }
+        
+        // Court + Partner button  
+        const courtPartnerBtn = document.querySelector('[onclick*="court_and_partner"]');
+        if (courtPartnerBtn) {
+            courtPartnerBtn.removeAttribute('onclick');
+            courtPartnerBtn.addEventListener('click', () => {
+                this.handleQuickAction('court_and_partner');
+            });
+        }
+        
+        // Weekend Matches button
+        const weekendBtn = document.querySelector('[onclick*="weekend_matches"]');
+        if (weekendBtn) {
+            weekendBtn.removeAttribute('onclick');
+            weekendBtn.addEventListener('click', () => {
+                this.handleQuickAction('weekend_matches');
+            });
+        }
+    }
+
+    setupTellAIForm() {
+        const askAIBtn = document.getElementById('ask-ai-btn') || document.querySelector('.btn:contains("Ask AI")');
+        if (askAIBtn) {
+            askAIBtn.addEventListener('click', () => {
+                const input = document.querySelector('input[placeholder*="beginner partner"]');
+                if (input && input.value.trim()) {
+                    this.handleTellAI(input.value.trim());
+                    input.value = '';
+                }
+            });
+        }
+    }
+
+    async handleQuickAction(actionType) {
+        this.showActionLoading(actionType);
+        
+        try {
+            const response = await fetch('/ai/action-request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action_type: actionType,
+                    message: ''
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.displayActionResults(data);
+            } else {
+                this.showActionError(data.message || 'Action failed');
+            }
+        } catch (error) {
+            console.error('Action error:', error);
+            this.showActionError('Connection error. Please try again.');
+        }
+    }
+
+    async handleTellAI(message) {
+        this.showActionLoading('tell_ai');
+        
+        try {
+            const response = await fetch('/ai/action-request', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action_type: 'tell_ai',
+                    message: message
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                this.displayActionResults(data);
+            } else {
+                this.showActionError(data.message || 'Action failed');
+            }
+        } catch (error) {
+            console.error('Tell AI error:', error);
+            this.showActionError('Connection error. Please try again.');
+        }
+    }
+
+    showActionLoading(actionType) {
+        // Find the AI Action Center area
+        const actionCenter = document.querySelector('.ai-action-center') || 
+                            document.getElementById('ai-action-results') ||
+                            document.querySelector('#ai-recommendations').parentNode;
+        
+        if (actionCenter) {
+            const loadingHTML = `
+                <div id="ai-action-loading" class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="sr-only">Finding matches...</span>
+                    </div>
+                    <p class="mt-2">Searching for available players and courts...</p>
+                </div>
+            `;
+            
+            // Add loading section or replace existing results
+            let resultsContainer = document.getElementById('ai-action-results');
+            if (!resultsContainer) {
+                resultsContainer = document.createElement('div');
+                resultsContainer.id = 'ai-action-results';
+                actionCenter.appendChild(resultsContainer);
+            }
+            resultsContainer.innerHTML = loadingHTML;
+        }
+    }
+
+    displayActionResults(data) {
+        const resultsContainer = document.getElementById('ai-action-results');
+        if (!resultsContainer) return;
+        
+        if (!data.proposals || data.proposals.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="alert alert-warning">
+                    <h6>No matches found</h6>
+                    <p>No available players or courts for your criteria. Try different times or locations.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let resultsHTML = `
+            <div class="ai-action-results">
+                <h6><i class="fas fa-magic text-success"></i> Match Proposals Found</h6>
+                <p class="text-muted">Found ${data.proposals.length} great options for ${data.parameters.date} at ${data.parameters.time}</p>
+                <div class="proposals-grid">
+        `;
+        
+        data.proposals.forEach((proposal, index) => {
+            resultsHTML += `
+                <div class="proposal-card border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${proposal.match_summary}</h6>
+                            <div class="text-muted small">
+                                <i class="fas fa-user"></i> ${proposal.player.name} (${proposal.player.compatibility} match)<br>
+                                <i class="fas fa-map-marker-alt"></i> ${proposal.court.name} - ${proposal.court.surface}<br>
+                                <i class="fas fa-clock"></i> ${proposal.date} at ${proposal.time}<br>
+                                <i class="fas fa-money-bill"></i> $${proposal.total_cost} (${proposal.court.duration})
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="dashboardAI.executeProposal('${proposal.proposal_id}', ${JSON.stringify(proposal.booking_action).replace(/"/g, '&quot;')})">
+                                <i class="fas fa-paper-plane"></i> Send Request
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        resultsHTML += '</div></div>';
+        resultsContainer.innerHTML = resultsHTML;
+    }
+
+    async executeProposal(proposalId, bookingAction) {
+        try {
+            const response = await fetch('/ai/execute-proposal', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    proposal_id: proposalId,
+                    booking_action: bookingAction
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Show success message
+                const resultsContainer = document.getElementById('ai-action-results');
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle"></i> Request Sent!</h6>
+                            <p>${data.message}</p>
+                            <ul class="mb-0">
+                                ${data.next_steps.map(step => `<li>${step}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+            } else {
+                this.showActionError(data.message || 'Failed to send request');
+            }
+        } catch (error) {
+            console.error('Execute proposal error:', error);
+            this.showActionError('Connection error. Please try again.');
+        }
+    }
+
+    showActionError(message) {
+        const resultsContainer = document.getElementById('ai-action-results');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle"></i> Action Failed</h6>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+    }
 }
+
+// Make executeProposal available globally
+window.dashboardAI = new DashboardAI();
 
 // Initialize when DOM is ready
 let dashboardAI;

@@ -32,3 +32,4 @@ starkbank-ecdsa==2.2.0
 urllib3==2.5.0
 Werkzeug==2.3.7
 WTForms==3.0.1
+psycopg2-binary==2.9.10

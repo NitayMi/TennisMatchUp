@@ -211,10 +211,10 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<div id="calendarData" 
-     data-bookings="{{ bookings_json|safe }}" 
-     data-player-id="{{ player.id if player else 0 }}" 
-     style="display: none;">
-</div>
+<script>
+    // Calendar data for JavaScript (MVC compliant)
+    window.calendarBookings = {{ bookings_json|safe }};
+    window.calendarPlayerId = {{ player.id if player else 0 }};
+</script>
 <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

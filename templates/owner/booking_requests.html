@@ -1,9 +1,655 @@
-<!-- templates/owner/booking_requests.html -->
 {% extends "base.html" %}
-{% block title %}Booking Requests{% endblock %}
+
+{% block title %}Booking Requests - TennisMatchUp{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/owner.css') }}" rel="stylesheet">
+{% endblock %}
+
 {% block content %}
-<div class="container py-4">
-    <h1>Booking Requests</h1>
-    <div class="alert alert-info">Booking management feature in development</div>
+<!-- Header -->
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1><i class="fas fa-clipboard-list me-2"></i>Booking Requests</h1>
+                <p class="lead mb-0">Manage incoming booking requests for your courts</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('owner.calendar') }}" class="btn btn-outline-light">
+                    <i class="fas fa-calendar-alt me-2"></i>Calendar View
+                </a>
+                <button class="btn btn-light" onclick="refreshBookings()">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
+
+<div class="container py-4">
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number text-warning">
+                        {{ bookings|selectattr('status', 'equalto', 'pending')|list|length }}
+                    </div>
+                    <div class="stat-label">Pending Requests</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number text-success">
+                        {{ bookings|selectattr('status', 'equalto', 'confirmed')|list|length }}
+                    </div>
+                    <div class="stat-label">Confirmed Today</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number text-info">
+                        ${{ "%.0f"|format(bookings|selectattr('status', 'equalto', 'confirmed')|map(attribute='total_cost')|sum or 0) }}
+                    </div>
+                    <div class="stat-label">Revenue Pending</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card dashboard-card">
+                <div class="card-body stat-card">
+                    <div class="stat-number text-primary">
+                        {{ bookings|length }}
+                    </div>
+                    <div class="stat-label">Total Requests</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <label for="status-filter" class="form-label">Filter by Status:</label>
+                    <select class="form-select" id="status-filter" onchange="filterBookings()">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="court-filter" class="form-label">Filter by Court:</label>
+                    <select class="form-select" id="court-filter" onchange="filterBookings()">
+                        <option value="">All Courts</option>
+                        {% for court in bookings|map(attribute='court')|unique %}
+                        <option value="{{ court.name }}">{{ court.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="date-filter" class="form-label">Filter by Date:</label>
+                    <input type="date" class="form-control" id="date-filter" onchange="filterBookings()">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="bulkApprove()" id="bulk-approve-btn" class="hidden">
+                            <i class="fas fa-check me-1"></i>Approve Selected
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Requests List -->
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Booking Requests</h5>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                    <label class="form-check-label" for="select-all">
+                        Select All
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if bookings %}
+                <div class="table-responsive">
+                    <table class="table table-hover" id="bookings-table">
+                        <thead>
+                            <tr>
+                                <th width="40">
+                                    <input type="checkbox" class="form-check-input" disabled>
+                                </th>
+                                <th>Player</th>
+                                <th>Court</th>
+                                <th>Date & Time</th>
+                                <th>Duration</th>
+                                <th>Cost</th>
+                                <th>Status</th>
+                                <th>Requested</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in bookings %}
+                            <tr class="booking-row" 
+                                data-status="{{ booking.status }}" 
+                                data-court="{{ booking.court.name }}" 
+                                data-date="{{ booking.booking_date.isoformat() }}">
+                                <td>
+                                    {% if booking.status == 'pending' %}
+                                    <input type="checkbox" class="form-check-input booking-checkbox" value="{{ booking.id }}">
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="player-avatar me-3">
+                                            <i class="fas fa-user-circle fa-2x text-primary"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">{{ booking.player.user.full_name }}</h6>
+                                            <small class="text-muted">
+                                                <i class="fas fa-envelope me-1"></i>{{ booking.player.user.email }}
+                                            </small>
+                                            {% if booking.player.user.phone_number %}
+                                            <br><small class="text-muted">
+                                                <i class="fas fa-phone me-1"></i>{{ booking.player.user.phone_number }}
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <h6 class="mb-1">{{ booking.court.name }}</h6>
+                                        <small class="text-muted">
+                                            <i class="fas fa-map-marker-alt me-1"></i>{{ booking.court.location[:30] }}...
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div>
+                                        <strong>{{ booking.booking_date.strftime('%A, %b %d') }}</strong><br>
+                                        <small class="text-muted">
+                                            {{ booking.start_time.strftime('%I:%M %p') }} - 
+                                            {{ booking.end_time.strftime('%I:%M %p') }}
+                                        </small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ booking.start_time|format_time }} - {{ booking.end_time|format_time }}</span>
+                                </td>
+                                <td>
+                                    <strong class="text-success">${{ booking.total_cost or booking.calculate_cost() }}</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{ 'warning' if booking.status == 'pending' else 'success' if booking.status == 'confirmed' else 'secondary' if booking.status == 'cancelled' else 'danger' }}">
+                                        {{ booking.status|booking_status_badge|safe }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">
+                                        {{ booking.created_at.strftime('%m/%d %I:%M %p') if booking.created_at else 'N/A' }}
+                                    </small>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        {% if booking.status == 'pending' %}
+                                            <button type="button" class="btn btn-sm btn-success" 
+                                                    data-booking-id="{{ booking.id }}"
+                                                    data-action="approve"
+                                                    onclick="updateBookingStatus(this.dataset.bookingId, this.dataset.action)"
+                                                    title="Approve Booking">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    data-booking-id="{{ booking.id }}"
+                                                    data-action="reject"
+                                                    onclick="updateBookingStatus(this.dataset.bookingId, this.dataset.action)"
+                                                    title="Reject Booking">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        {% elif booking.status == 'confirmed' %}
+                                            <button type="button" class="btn btn-sm btn-warning" 
+                                                    data-booking-id="{{ booking.id }}"
+                                                    data-action="cancel"
+                                                    onclick="updateBookingStatus(this.dataset.bookingId, this.dataset.action)"
+                                                    title="Cancel Booking">
+                                                <i class="fas fa-ban"></i>
+                                            </button>
+                                        {% endif %}
+                                        
+                                        <button type="button" class="btn btn-sm btn-outline-info" 
+                                                data-booking-id="{{ booking.id }}"
+                                                onclick="showBookingDetails(this.dataset.bookingId)"
+                                                title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        
+                                        {% if booking.player.user.email %}
+                                        <a href="mailto:{{ booking.player.user.email }}" 
+                                           class="btn btn-sm btn-outline-secondary"
+                                           title="Send Email">
+                                            <i class="fas fa-envelope"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <!-- Empty State -->
+                <div class="text-center py-5">
+                    <i class="fas fa-clipboard-list fa-4x text-muted mb-4"></i>
+                    <h4>No Booking Requests</h4>
+                    <p class="text-muted mb-4">You don't have any booking requests at the moment</p>
+                    <a href="{{ url_for('owner.manage_courts') }}" class="btn btn-tennis">
+                        <i class="fas fa-plus me-2"></i>Manage Your Courts
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    {% if bookings %}
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" onclick="approveAllPending()">
+                            <i class="fas fa-check-double me-2"></i>Approve All Pending
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="exportBookings()">
+                            <i class="fas fa-download me-2"></i>Export to CSV
+                        </button>
+                        <a href="{{ url_for('owner.calendar') }}" class="btn btn-outline-info">
+                            <i class="fas fa-calendar-alt me-2"></i>View Calendar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Response Time Stats</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-number text-success">85%</div>
+                            <small class="text-muted">Within 2 Hours</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-number text-warning">12%</div>
+                            <small class="text-muted">Within 24 Hours</small>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-number text-danger">3%</div>
+                            <small class="text-muted">Over 24 Hours</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-calendar-check me-2"></i>Booking Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="booking-details-content">
+                <!-- Content loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <div id="modal-booking-actions">
+                    <!-- Action buttons loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.dashboard-card {
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 0.5rem;
+}
+
+.player-avatar {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-group .btn {
+    margin-right: 2px;
+}
+
+.btn-group .btn:last-child {
+    margin-right: 0;
+}
+
+.booking-row.filtered-out {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+    }
+}
+</style>
+
+<script>
+let allBookings = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeBookings();
+});
+
+function initializeBookings() {
+    // Store all booking rows for filtering
+    allBookings = Array.from(document.querySelectorAll('.booking-row'));
+    updateBulkActionVisibility();
+}
+
+function filterBookings() {
+    const statusFilter = document.getElementById('status-filter').value;
+    const courtFilter = document.getElementById('court-filter').value;
+    const dateFilter = document.getElementById('date-filter').value;
+    
+    allBookings.forEach(row => {
+        let showRow = true;
+        
+        // Status filter
+        if (statusFilter && row.dataset.status !== statusFilter) {
+            showRow = false;
+        }
+        
+        // Court filter
+        if (courtFilter && row.dataset.court !== courtFilter) {
+            showRow = false;
+        }
+        
+        // Date filter
+        if (dateFilter && row.dataset.date !== dateFilter) {
+            showRow = false;
+        }
+        
+        // Show/hide row
+        if (showRow) {
+            row.classList.remove('filtered-out');
+            row.style.display = '';
+        } else {
+            row.classList.add('filtered-out');
+            row.style.display = 'none';
+        }
+    });
+    
+    updateBulkActionVisibility();
+}
+
+function clearFilters() {
+    document.getElementById('status-filter').value = '';
+    document.getElementById('court-filter').value = '';
+    document.getElementById('date-filter').value = '';
+    filterBookings();
+}
+
+function toggleSelectAll() {
+    const selectAllBox = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.booking-checkbox:not([style*="display: none"])');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAllBox.checked;
+    });
+    
+    updateBulkActionVisibility();
+}
+
+function updateBulkActionVisibility() {
+    const checkboxes = document.querySelectorAll('.booking-checkbox:checked');
+    const bulkApproveBtn = document.getElementById('bulk-approve-btn');
+    
+    if (checkboxes.length > 0) {
+        bulkApproveBtn.style.display = 'block';
+    } else {
+        bulkApproveBtn.style.display = 'none';
+    }
+}
+
+// Add event listeners to checkboxes
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('booking-checkbox')) {
+        updateBulkActionVisibility();
+    }
+});
+
+async function updateBookingStatus(bookingId, action) {
+    let reason = '';
+    
+    if (action === 'reject' || action === 'cancel') {
+        reason = prompt(`Please provide a reason for ${action}ing this booking:`);
+        if (!reason) return; // User cancelled
+    }
+    
+    if (action === 'approve' && !confirm('Are you sure you want to approve this booking?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/owner/booking/${bookingId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: reason ? `reason=${encodeURIComponent(reason)}` : ''
+        });
+        
+        if (response.ok) {
+            // Force complete page reload with cache busting
+            window.location.href = window.location.pathname + '?updated=' + Date.now();
+        } else {
+            const errorText = await response.text();
+            alert(`Failed to ${action} booking: ${errorText}`);
+        }
+    } catch (error) {
+        console.error('Error updating booking status:', error);
+        alert('An error occurred. Please try again.');
+    }
+}
+
+async function bulkApprove() {
+    const selectedCheckboxes = document.querySelectorAll('.booking-checkbox:checked');
+    const bookingIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (bookingIds.length === 0) {
+        alert('Please select at least one booking to approve.');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to approve ${bookingIds.length} booking(s)?`)) {
+        return;
+    }
+    
+    // Process each booking
+    for (const bookingId of bookingIds) {
+        try {
+            await updateBookingStatus(bookingId, 'approve');
+        } catch (error) {
+            console.error(`Failed to approve booking ${bookingId}:`, error);
+        }
+    }
+    
+    location.reload();
+}
+
+async function approveAllPending() {
+    const pendingBookings = document.querySelectorAll('[data-status="pending"]');
+    
+    if (pendingBookings.length === 0) {
+        alert('No pending bookings to approve.');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to approve all ${pendingBookings.length} pending booking(s)?`)) {
+        return;
+    }
+    
+    // Process each pending booking
+    for (const row of pendingBookings) {
+        const checkbox = row.querySelector('.booking-checkbox');
+        if (checkbox) {
+            try {
+                await updateBookingStatus(checkbox.value, 'approve');
+            } catch (error) {
+                console.error(`Failed to approve booking ${checkbox.value}:`, error);
+            }
+        }
+    }
+    
+    location.reload();
+}
+
+function showBookingDetails(bookingId) {
+    // This would typically fetch booking details via AJAX
+    // For now, we'll show a placeholder modal
+    const modal = new bootstrap.Modal(document.getElementById('bookingDetailsModal'));
+    const contentEl = document.getElementById('booking-details-content');
+    
+    contentEl.innerHTML = `
+        <div class="text-center py-4">
+            <i class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <p>Loading booking details...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Simulate loading - in real implementation, fetch from server
+    setTimeout(() => {
+        contentEl.innerHTML = `
+            <div class="alert alert-info">
+                <h6>Booking Details</h6>
+                <p>Detailed booking information would be loaded here via AJAX call to:</p>
+                <code>/api/booking/${bookingId}/details</code>
+            </div>
+        `;
+    }, 1000);
+}
+
+function refreshBookings() {
+    location.reload();
+}
+
+function exportBookings() {
+    // Create CSV data
+    const rows = [
+        ['Player Name', 'Email', 'Court', 'Date', 'Start Time', 'End Time', 'Duration', 'Cost', 'Status', 'Requested']
+    ];
+    
+    allBookings.forEach(row => {
+        if (!row.classList.contains('filtered-out')) {
+            const cells = row.querySelectorAll('td');
+            const playerName = cells[1].querySelector('h6').textContent.trim();
+            const email = cells[1].querySelector('small').textContent.replace('✉', '').trim();
+            const court = cells[2].querySelector('h6').textContent.trim();
+            const date = cells[3].querySelector('strong').textContent.trim();
+            const timeRange = cells[3].querySelector('small').textContent.trim();
+            const [startTime, endTime] = timeRange.split(' - ');
+            const duration = cells[4].textContent.trim();
+            const cost = cells[5].textContent.trim();
+            const status = cells[6].textContent.trim();
+            const requested = cells[7].textContent.trim();
+            
+            rows.push([playerName, email, court, date, startTime, endTime, duration, cost, status, requested]);
+        }
+    });
+    
+    // Create CSV file
+    const csvContent = rows.map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    
+    // Download file
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `booking-requests-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+// Auto-refresh every 2 minutes
+setInterval(refreshBookings, 2 * 60 * 1000);
+</script>
 {% endblock %}

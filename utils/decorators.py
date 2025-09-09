@@ -3,7 +3,7 @@ Authentication decorators for TennisMatchUp
 Simple session-based decorators without Flask-Login dependency
 """
 from functools import wraps
-from flask import session, request, redirect, url_for, flash
+from flask import session, request, redirect, url_for, flash, jsonify
 
 def login_required(f):
     """Decorator to require user login"""
@@ -78,3 +78,67 @@ def anonymous_required(f):
         
         return f(*args, **kwargs)
     return decorated_function
+
+def api_required(f):
+    """Decorator for API endpoints - returns JSON errors instead of redirects"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Authentication required', 'success': False}), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def api_admin_required(f):
+    """Decorator to require admin privileges for API endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Authentication required', 'success': False}), 401
+        
+        if session.get('user_type') != 'admin':
+            return jsonify({'error': 'Admin access required', 'success': False}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def api_player_required(f):
+    """Decorator to require player privileges for API endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Authentication required', 'success': False}), 401
+        
+        if session.get('user_type') != 'player':
+            return jsonify({'error': 'Player access required', 'success': False}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def api_owner_required(f):
+    """Decorator to require owner privileges for API endpoints"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Authentication required', 'success': False}), 401
+        
+        if session.get('user_type') != 'owner':
+            return jsonify({'error': 'Owner access required', 'success': False}), 403
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# הוסף בסוף קובץ utils/decorators.py הקיים שלך:
+
+def api_required(f):
+    """Decorator for API endpoints - returns JSON errors instead of redirects"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify({'error': 'Authentication required', 'success': False}), 401
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+# גם צריך להוסיף import של jsonify בתחילת הקובץ:
+# from flask import session, request, redirect, url_for, flash, jsonify

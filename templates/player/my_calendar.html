@@ -90,7 +90,7 @@
                         <div class="booking-item mb-3 p-2 border rounded">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1">
-                                    <h6 class="mb-1 text-primary">{{ booking.court.name }}</h6>
+                                    <h6 class="mb-1 text-primary">{{ booking.court.name if booking.court else 'Unknown Court' }}</h6>
                                     <small class="text-muted d-block">
                                         <i class="fas fa-calendar me-1"></i>
                                         {{ booking.booking_date.strftime('%a, %b %d') }}
@@ -101,7 +101,7 @@
                                     </small>
                                     <small class="text-muted d-block">
                                         <i class="fas fa-map-marker-alt me-1"></i>
-                                        {{ booking.court.location }}
+                                        {{ booking.court.location if booking.court else 'Unknown Location' }}
                                     </small>
                                 </div>
                                 <div class="text-end">
@@ -211,17 +211,10 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
-console.log('Setting up calendar data...');
-// Pass booking data to JavaScript
-try {
-    window.bookingsData = JSON.parse('{{ bookings_json|safe }}');
-    window.currentPlayer = '{{ player.id }}';
-    console.log('Calendar data set:', window.bookingsData);
-} catch (error) {
-    console.error('Error setting calendar data:', error);
-    window.bookingsData = [];
-}
-</script>
+<div id="calendarData" 
+     data-bookings='{{ bookings_json|safe }}' 
+     data-player-id="{{ player.id if player else 0 }}" 
+     style="display: none;">
+</div>
 <script src="{{ url_for('static', filename='js/calendar.js') }}"></script>
 {% endblock %}

@@ -92,8 +92,6 @@ class RuleEngine:
         
         return result    
 
-    # החלף את המתודה validate_booking הקיימת ב-services/rule_engine.py עם זו:
-
     @staticmethod
     def validate_booking(court_id, player_id, booking_date, start_time, end_time, exclude_booking_id=None):
         """Comprehensive booking validation using business rules"""
@@ -140,7 +138,7 @@ class RuleEngine:
         
         # 5. Validate time range using business rules
         if isinstance(start_time, str) and isinstance(end_time, str):
-            time_validation = RuleEngine.validate_booking_time_range(start_time, end_time)
+            time_validation = RuleEngine.validate_booking_time_range(start_time, end_time, player_id)
             if not time_validation['valid']:
                 return time_validation
         
@@ -459,581 +457,202 @@ class RuleEngine:
             'warnings': warnings
         }
     
-    # הוסף את המתודות האלה לקובץ services/rule_engine.py
-
-@staticmethod
-def check_court_availability(court_id, date_str):
-    """Check court availability for a specific date"""
-    try:
-        from datetime import datetime
-        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        
-        # Get existing bookings
-        from models.court import Booking
-        existing_bookings = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.booking_date == target_date,
-            Booking.status.in_(['confirmed', 'pending'])
-        ).count()
-        
-        # Calculate available slots (13 total slots from 8 AM to 9 PM)
-        total_possible_slots = 13
-        available_slots = max(0, total_possible_slots - existing_bookings)
-        
-        return {
-            'available': available_slots > 0,
-            'available_slots': available_slots,
-            'existing_bookings': existing_bookings,
-            'date': target_date.isoformat()
-        }
-        
-    except Exception as e:
-        return {
-            'available': False,
-            'available_slots': 0,
-            'existing_bookings': 0,
-            'error': str(e)
-        }
-
-@staticmethod
-def validate_booking_time_range(start_time_str, end_time_str):
-    """Validate booking time range meets business rules"""
-    try:
-        from datetime import datetime, time
-        
-        start_time = datetime.strptime(start_time_str, '%H:%M').time()
-        end_time = datetime.strptime(end_time_str, '%H:%M').time()
-        
-        # Business rules for time validation
-        opening_time = time(6, 0)   # 6 AM
-        closing_time = time(22, 0)  # 10 PM
-        
-        # Check operating hours
-        if start_time < opening_time or end_time > closing_time:
-            return {
-                'valid': False,
-                'reason': f'Court operates from {opening_time.strftime("%I:%M %p")} to {closing_time.strftime("%I:%M %p")}'
-            }
-        
-        # Check minimum duration (1 hour)
-        start_datetime = datetime.combine(datetime.today(), start_time)
-        end_datetime = datetime.combine(datetime.today(), end_time)
-        duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
-        
-        if duration_hours < 1:
-            return {
-                'valid': False,
-                'reason': 'Minimum booking duration is 1 hour'
-            }
-        
-        # Check maximum duration (4 hours)
-        if duration_hours > 4:
-            return {
-                'valid': False,
-                'reason': 'Maximum booking duration is 4 hours'
-            }
-        
-        return {
-            'valid': True,
-            'duration_hours': duration_hours
-        }
-        
-    except ValueError:
-        return {
-            'valid': False,
-            'reason': 'Invalid time format'
-        }
-
-@staticmethod
-def validate_booking_conflicts(court_id, booking_date_str, start_time_str, end_time_str, exclude_booking_id=None):
-    """Check for booking conflicts with existing bookings"""
-    try:
-        from datetime import datetime
-        from models.court import Booking
-        
-        booking_date = datetime.strptime(booking_date_str, '%Y-%m-%d').date()
-        start_time = datetime.strptime(start_time_str, '%H:%M').time()
-        end_time = datetime.strptime(end_time_str, '%H:%M').time()
-        
-        # Query for conflicting bookings
-        conflicts_query = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.booking_date == booking_date,
-            Booking.status.in_(['confirmed', 'pending']),
-            # Check for time overlap
-            Booking.start_time < end_time,
-            Booking.end_time > start_time
-        )
-        
-        # Exclude current booking if editing
-        if exclude_booking_id:
-            conflicts_query = conflicts_query.filter(Booking.id != exclude_booking_id)
-        
-        conflicts = conflicts_query.all()
-        
-        if conflicts:
-            conflict_times = [
-                f"{conflict.start_time.strftime('%H:%M')}-{conflict.end_time.strftime('%H:%M')}"
-                for conflict in conflicts
-            ]
-            return {
-                'valid': False,
-                'reason': f'Time slot conflicts with existing booking(s): {", ".join(conflict_times)}',
-                'conflicts': conflicts
-            }
-        
-        return {'valid': True}
-        
-    except Exception as e:
-        return {
-            'valid': False,
-            'reason': f'Error checking conflicts: {str(e)}'
-        }
-    
-"""
-Complete Missing Methods for services/rule_engine.py
-Add these methods to your existing RuleEngine class
-"""
-
-# Add these methods to the RuleEngine class:
-
-@staticmethod
-def validate_booking_conflicts(court_id, booking_date, start_time, end_time, exclude_booking_id=None):
-    """Check for booking conflicts with existing bookings"""
-    try:
-        from datetime import datetime
-        from models.court import Booking
-        
-        # Convert strings to proper types if needed
-        if isinstance(booking_date, str):
-            booking_date_obj = datetime.strptime(booking_date, '%Y-%m-%d').date()
-        else:
-            booking_date_obj = booking_date
+    @staticmethod
+    def check_court_availability(court_id, date_str):
+        """Check court availability for a specific date"""
+        try:
+            from datetime import datetime
+            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             
-        if isinstance(start_time, str):
-            start_time_obj = datetime.strptime(start_time, '%H:%M').time()
-        else:
-            start_time_obj = start_time
+            # Get existing bookings
+            from models.court import Booking
+            existing_bookings = Booking.query.filter(
+                Booking.court_id == court_id,
+                Booking.booking_date == target_date,
+                Booking.status.in_(['confirmed', 'pending'])
+            ).count()
             
-        if isinstance(end_time, str):
-            end_time_obj = datetime.strptime(end_time, '%H:%M').time()
-        else:
-            end_time_obj = end_time
-        
-        # Build query for existing bookings
-        query = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.booking_date == booking_date_obj,
-            Booking.status.in_(['confirmed', 'pending'])
-        )
-        
-        # Exclude current booking if updating
-        if exclude_booking_id:
-            query = query.filter(Booking.id != exclude_booking_id)
-        
-        existing_bookings = query.all()
-        
-        # Check for time conflicts
-        for booking in existing_bookings:
-            # Check if time ranges overlap
-            if (start_time_obj < booking.end_time and end_time_obj > booking.start_time):
+            # Calculate available slots (13 total slots from 8 AM to 9 PM)
+            total_possible_slots = 13
+            available_slots = max(0, total_possible_slots - existing_bookings)
+            
+            return {
+                'available': available_slots > 0,
+                'available_slots': available_slots,
+                'existing_bookings': existing_bookings,
+                'date': target_date.isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                'available': False,
+                'available_slots': 0,
+                'existing_bookings': 0,
+                'error': str(e)
+            }
+
+    @staticmethod
+    def validate_booking_time_range(start_time_str, end_time_str):
+        """Validate booking time range meets business rules"""
+        try:
+            from datetime import datetime, time
+            
+            start_time = datetime.strptime(start_time_str, '%H:%M').time()
+            end_time = datetime.strptime(end_time_str, '%H:%M').time()
+            
+            # Business rules for time validation
+            opening_time = time(6, 0)   # 6 AM
+            closing_time = time(22, 0)  # 10 PM
+            
+            # Check operating hours
+            if start_time < opening_time or end_time > closing_time:
                 return {
                     'valid': False,
-                    'reason': f'Time conflict with existing booking ({booking.start_time.strftime("%H:%M")} - {booking.end_time.strftime("%H:%M")})'
+                    'reason': f'Court operates from {opening_time.strftime("%I:%M %p")} to {closing_time.strftime("%I:%M %p")}'
                 }
-        
-        return {'valid': True}
-        
-    except Exception as e:
-        return {
-            'valid': False,
-            'reason': f'Error checking booking conflicts: {str(e)}'
-        }
-
-@staticmethod
-def calculate_court_recommendation_score(court, player):
-    """Calculate recommendation score for a court based on player preferences"""
-    try:
-        score = 0
-        max_score = 100
-        
-        # Price compatibility (30 points max)
-        if court.hourly_rate <= 30:
-            score += 30  # Excellent value
-        elif court.hourly_rate <= 50:
-            score += 25  # Good value
-        elif court.hourly_rate <= 80:
-            score += 20  # Fair value
-        elif court.hourly_rate <= 120:
-            score += 15  # Premium
-        else:
-            score += 5   # Expensive
-        
-        # Surface preference (20 points max)
-        if player.preferred_court_type and court.surface:
-            if player.preferred_court_type.lower() == court.surface.lower():
-                score += 20
-            elif player.preferred_court_type.lower() == 'any' or court.surface.lower() == 'hard':
-                score += 15  # Hard courts are most common/versatile
-            else:
-                score += 5
-        else:
-            score += 10  # Default score when preferences unknown
-        
-        # Location compatibility (25 points max)
-        if player.preferred_location and court.location:
-            player_loc = player.preferred_location.lower()
-            court_loc = court.location.lower()
             
-            if player_loc in court_loc or court_loc in player_loc:
-                score += 25
-            elif any(word in court_loc for word in player_loc.split()):
-                score += 15
-            else:
-                score += 5
-        else:
-            score += 10  # Default when location not specified
-        
-        # Amenities bonus (15 points max)
-        amenity_score = 0
-        if court.has_lighting:
-            amenity_score += 4
-        if court.has_parking:
-            amenity_score += 4
-        if court.has_equipment_rental:
-            amenity_score += 3
-        if court.has_changing_rooms:
-            amenity_score += 4
-        
-        score += min(amenity_score, 15)
-        
-        # Court type preference (10 points max)
-        if court.court_type == 'indoor':
-            score += 8  # Indoor courts are weather-proof
-        else:
-            score += 6  # Outdoor courts are common
-        
-        # Ensure score is within bounds
-        score = min(score, max_score)
-        score = max(score, 0)
-        
-        return score
-        
-    except Exception as e:
-        print(f"Error calculating court recommendation score: {e}")
-        return 50  # Return neutral score on error
-
-@staticmethod
-def validate_court_availability(court_id, date_str):
-    """Enhanced court availability validation"""
-    try:
-        from datetime import datetime, date
-        from models.court import Court, Booking
-        
-        # Validate court exists and is active
-        court = Court.query.get(court_id)
-        if not court:
+            # Check minimum duration (1 hour)
+            start_datetime = datetime.combine(datetime.today(), start_time)
+            end_datetime = datetime.combine(datetime.today(), end_time)
+            duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
+            
+            if duration_hours < 1:
+                return {
+                    'valid': False,
+                    'reason': 'Minimum booking duration is 1 hour'
+                }
+            
+            # Check maximum duration (4 hours)
+            if duration_hours > 4:
+                return {
+                    'valid': False,
+                    'reason': 'Maximum booking duration is 4 hours'
+                }
+            
             return {
-                'available': False,
-                'reason': 'Court not found',
-                'available_slots': 0
+                'valid': True,
+                'duration_hours': duration_hours
             }
-        
-        if not court.is_active:
-            return {
-                'available': False,
-                'reason': 'Court is not currently available',
-                'available_slots': 0
-            }
-        
-        # Parse and validate date
-        try:
-            target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            
         except ValueError:
             return {
-                'available': False,
-                'reason': 'Invalid date format',
-                'available_slots': 0
+                'valid': False,
+                'reason': 'Invalid time format'
             }
-        
-        # Check if date is not in the past
-        if target_date < date.today():
-            return {
-                'available': False,
-                'reason': 'Cannot book courts for past dates',
-                'available_slots': 0
-            }
-        
-        # Check advance booking limit
-        days_ahead = (target_date - date.today()).days
-        if court.advance_booking_days and days_ahead > court.advance_booking_days:
-            return {
-                'available': False,
-                'reason': f'Cannot book more than {court.advance_booking_days} days in advance',
-                'available_slots': 0
-            }
-        
-        # Count existing bookings for this date
-        existing_bookings = Booking.query.filter(
-            Booking.court_id == court_id,
-            Booking.booking_date == target_date,
-            Booking.status.in_(['confirmed', 'pending'])
-        ).count()
-        
-        # Calculate available slots (operating hours: 6 AM to 10 PM = 16 hours max)
-        max_possible_bookings = 16  # Assuming 1-hour minimum slots
-        available_slots = max(0, max_possible_bookings - existing_bookings)
-        
-        is_available = available_slots > 0
-        
-        return {
-            'available': is_available,
-            'available_slots': available_slots,
-            'existing_bookings': existing_bookings,
-            'date': target_date.isoformat(),
-            'reason': 'Available' if is_available else 'Fully booked for this date'
-        }
-        
-    except Exception as e:
-        print(f"Error validating court availability: {e}")
-        return {
-            'available': False,
-            'reason': f'Error checking availability: {str(e)}',
-            'available_slots': 0
-        }
 
-@staticmethod
-def validate_message_sending(sender_id, receiver_id, content):
-    """Validate message sending with enhanced rules"""
-    try:
-        from models.user import User
-        from models.message import Message
-        from datetime import datetime, timedelta
-        
-        # Basic validation
-        if sender_id == receiver_id:
-            return {'valid': False, 'reason': 'Cannot send message to yourself'}
-        
-        if not content or len(content.strip()) < 1:
-            return {'valid': False, 'reason': 'Message content cannot be empty'}
-        
-        if len(content) > 1000:
-            return {'valid': False, 'reason': 'Message too long (max 1000 characters)'}
-        
-        # Check for inappropriate content (basic filter)
-        inappropriate_words = ['spam', 'scam', 'fake', 'fraud']
-        content_lower = content.lower()
-        for word in inappropriate_words:
-            if word in content_lower:
-                return {'valid': False, 'reason': 'Message contains inappropriate content'}
-        
-        # Check if users exist and are active
-        sender = User.query.get(sender_id)
-        receiver = User.query.get(receiver_id)
-        
-        if not sender or not sender.is_active:
-            return {'valid': False, 'reason': 'Sender account not valid'}
-        
-        if not receiver or not receiver.is_active:
-            return {'valid': False, 'reason': 'Recipient account not valid'}
-        
-        # Rate limiting - max 50 messages per hour per user
-        hour_ago = datetime.now() - timedelta(hours=1)
-        recent_messages = Message.query.filter(
-            Message.sender_id == sender_id,
-            Message.created_at >= hour_ago
-        ).count()
-        
-        if recent_messages >= 50:
-            return {
-                'valid': False, 
-                'reason': 'Message rate limit exceeded. Please wait before sending more messages.'
-            }
-        
-        # Check for spam - max 5 messages to same recipient in 10 minutes
-        ten_minutes_ago = datetime.now() - timedelta(minutes=10)
-        recent_to_same_user = Message.query.filter(
-            Message.sender_id == sender_id,
-            Message.receiver_id == receiver_id,
-            Message.created_at >= ten_minutes_ago
-        ).count()
-        
-        if recent_to_same_user >= 5:
+    @staticmethod
+    def validate_booking_conflicts(court_id, booking_date_str, start_time_str, end_time_str, exclude_booking_id=None):
+        """Check for booking conflicts with existing bookings"""
+        try:
+            from datetime import datetime
+            from models.court import Booking
+            
+            booking_date = datetime.strptime(booking_date_str, '%Y-%m-%d').date()
+            start_time = datetime.strptime(start_time_str, '%H:%M').time()
+            end_time = datetime.strptime(end_time_str, '%H:%M').time()
+            
+            # Query for conflicting bookings
+            conflicts_query = Booking.query.filter(
+                Booking.court_id == court_id,
+                Booking.booking_date == booking_date,
+                Booking.status.in_(['confirmed', 'pending']),
+                # Check for time overlap
+                Booking.start_time < end_time,
+                Booking.end_time > start_time
+            )
+            
+            # Exclude current booking if editing
+            if exclude_booking_id:
+                conflicts_query = conflicts_query.filter(Booking.id != exclude_booking_id)
+            
+            conflicts = conflicts_query.all()
+            
+            if conflicts:
+                conflict_times = [
+                    f"{conflict.start_time.strftime('%H:%M')}-{conflict.end_time.strftime('%H:%M')}"
+                    for conflict in conflicts
+                ]
+                return {
+                    'valid': False,
+                    'reason': f'Time slot conflicts with existing booking(s): {", ".join(conflict_times)}',
+                    'conflicts': conflicts
+                }
+            
+            return {'valid': True}
+            
+        except Exception as e:
             return {
                 'valid': False,
-                'reason': 'Too many messages to this user. Please wait before sending more.'
+                'reason': f'Error checking conflicts: {str(e)}'
             }
+    
+    @staticmethod
+    def validate_status_change(current_status, new_status, user_type=None, booking_id=None):
+        """Validate booking status change based on business rules"""
+        result = {'valid': True, 'reason': ''}
         
-        return {'valid': True}
-        
-    except Exception as e:
-        print(f"Error validating message sending: {e}")
-        return {'valid': False, 'reason': 'Error validating message'}
-
-@staticmethod
-def validate_booking_time_range(start_time_str, end_time_str):
-    """Enhanced booking time range validation"""
-    try:
-        from datetime import datetime, time
-        
-        start_time = datetime.strptime(start_time_str, '%H:%M').time()
-        end_time = datetime.strptime(end_time_str, '%H:%M').time()
-        
-        # Business rules for time validation
-        opening_time = time(6, 0)   # 6 AM
-        closing_time = time(22, 0)  # 10 PM
-        
-        # Check operating hours
-        if start_time < opening_time or end_time > closing_time:
-            return {
-                'valid': False,
-                'reason': f'Court operates from {opening_time.strftime("%I:%M %p")} to {closing_time.strftime("%I:%M %p")}'
-            }
-        
-        # Check start time is before end time
-        if start_time >= end_time:
-            return {
-                'valid': False,
-                'reason': 'Start time must be before end time'
-            }
-        
-        # Check minimum duration (1 hour)
-        start_datetime = datetime.combine(datetime.today(), start_time)
-        end_datetime = datetime.combine(datetime.today(), end_time)
-        duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
-        
-        if duration_hours < 1:
-            return {
-                'valid': False,
-                'reason': 'Minimum booking duration is 1 hour'
-            }
-        
-        # Check maximum duration (8 hours)
-        if duration_hours > 8:
-            return {
-                'valid': False,
-                'reason': 'Maximum booking duration is 8 hours'
-            }
-        
-        # Check for reasonable time slots (no bookings at odd minutes)
-        if start_time.minute not in [0, 30] or end_time.minute not in [0, 30]:
-            return {
-                'valid': False,
-                'reason': 'Bookings must start and end on hour or half-hour'
-            }
-        
-        return {
-            'valid': True,
-            'duration_hours': duration_hours,
-            'start_time': start_time,
-            'end_time': end_time
+        # Valid status transitions
+        valid_transitions = {
+            'pending': ['confirmed', 'rejected', 'cancelled'],
+            'confirmed': ['cancelled'],
+            'rejected': [],  # Final state
+            'cancelled': []  # Final state
         }
         
-    except ValueError as e:
-        return {
-            'valid': False,
-            'reason': 'Invalid time format. Please use HH:MM format'
-        }
-    except Exception as e:
-        return {
-            'valid': False,
-            'reason': f'Error validating time range: {str(e)}'
-        }
-
-@staticmethod
-def get_booking_cost_breakdown(court_id, start_time_str, end_time_str):
-    """Calculate detailed cost breakdown for a booking"""
-    try:
-        from models.court import Court
-        from datetime import datetime
+        # Check if transition is allowed
+        if new_status not in valid_transitions.get(current_status, []):
+            result['valid'] = False
+            result['reason'] = f'Cannot change from {current_status} to {new_status}'
+            return result
         
-        court = Court.query.get(court_id)
-        if not court:
-            return {'error': 'Court not found'}
+        # User type specific validations
+        if user_type == 'owner':
+            # Owners can approve (pending->confirmed) and reject (pending->rejected)
+            if current_status == 'pending' and new_status in ['confirmed', 'rejected']:
+                result['valid'] = True
+            # Owners can cancel confirmed bookings
+            elif current_status == 'confirmed' and new_status == 'cancelled':
+                result['valid'] = True
+            else:
+                result['valid'] = False
+                result['reason'] = f'Owners cannot change booking from {current_status} to {new_status}'
+                return result
         
-        # Validate time range first
-        time_validation = RuleEngine.validate_booking_time_range(start_time_str, end_time_str)
-        if not time_validation['valid']:
-            return {'error': time_validation['reason']}
+        elif user_type == 'player':
+            # Players can only cancel their own bookings
+            if new_status == 'cancelled' and current_status in ['pending', 'confirmed']:
+                result['valid'] = True
+            else:
+                result['valid'] = False
+                result['reason'] = f'Players cannot change booking from {current_status} to {new_status}'
+                return result
         
-        duration_hours = time_validation['duration_hours']
-        base_cost = duration_hours * court.hourly_rate
+        # Additional business rule validations
+        if booking_id and new_status == 'confirmed':
+            # Check for date conflicts when confirming
+            from models.court import Booking
+            booking = Booking.query.get(booking_id)
+            if booking:
+                # Check if booking date hasn't passed
+                from datetime import datetime, date
+                if booking.booking_date < date.today():
+                    result['valid'] = False
+                    result['reason'] = 'Cannot approve booking for past date'
+                    return result
+                
+                # Check for conflicts with other confirmed bookings
+                conflicts = Booking.query.filter(
+                    Booking.court_id == booking.court_id,
+                    Booking.booking_date == booking.booking_date,
+                    Booking.status == 'confirmed',
+                    Booking.id != booking_id,
+                    Booking.start_time < booking.end_time,
+                    Booking.end_time > booking.start_time
+                ).first()
+                
+                if conflicts:
+                    result['valid'] = False
+                    result['reason'] = 'Time slot conflicts with another confirmed booking'
+                    return result
         
-        # Calculate any additional fees
-        service_fee = base_cost * 0.05  # 5% service fee
-        total_cost = base_cost + service_fee
-        
-        # Apply any discounts
-        discount = 0
-        discount_reason = None
-        
-        # Discount for longer bookings (3+ hours)
-        if duration_hours >= 3:
-            discount = base_cost * 0.1  # 10% discount
-            discount_reason = "Long booking discount (3+ hours)"
-        
-        final_cost = total_cost - discount
-        
-        return {
-            'base_cost': round(base_cost, 2),
-            'service_fee': round(service_fee, 2),
-            'discount': round(discount, 2),
-            'discount_reason': discount_reason,
-            'total_cost': round(final_cost, 2),
-            'duration_hours': duration_hours,
-            'hourly_rate': court.hourly_rate,
-            'breakdown': {
-                'court_rental': f'${base_cost:.2f} ({duration_hours} hours × ${court.hourly_rate}/hour)',
-                'service_fee': f'${service_fee:.2f} (5% service fee)',
-                'discount': f'-${discount:.2f} ({discount_reason})' if discount > 0 else None,
-                'total': f'${final_cost:.2f}'
-            }
-        }
-        
-    except Exception as e:
-        return {'error': f'Error calculating cost: {str(e)}'}
-
-@staticmethod
-def validate_player_profile_completion(player):
-    """Validate if player profile is complete enough for matching"""
-    try:
-        missing_fields = []
-        
-        # Required fields for basic matching
-        if not player.skill_level:
-            missing_fields.append('skill level')
-        
-        if not player.preferred_location:
-            missing_fields.append('preferred location')
-        
-        if not player.availability:
-            missing_fields.append('availability')
-        
-        # Recommended fields
-        recommended_missing = []
-        if not player.bio or len(player.bio.strip()) < 10:
-            recommended_missing.append('bio (at least 10 characters)')
-        
-        if not player.playing_style:
-            recommended_missing.append('playing style')
-        
-        if not player.years_playing:
-            recommended_missing.append('years of experience')
-        
-        profile_complete = len(missing_fields) == 0
-        profile_score = max(0, 100 - (len(missing_fields) * 25) - (len(recommended_missing) * 10))
-        
-        return {
-            'complete': profile_complete,
-            'score': profile_score,
-            'missing_required': missing_fields,
-            'missing_recommended': recommended_missing,
-            'ready_for_matching': profile_complete and profile_score >= 60
-        }
-        
-    except Exception as e:
-        return {
-            'complete': False,
-            'score': 0,
-            'error': f'Error validating profile: {str(e)}'
-        }
+        return result

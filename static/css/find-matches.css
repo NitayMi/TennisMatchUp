@@ -1,0 +1,305 @@
+/* static/css/find-matches.css - PROFESSIONAL UX/UI WITH CORRECT COLORS */
+
+/* ========== Player Match Cards ========== */
+.player-match-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    background: white;
+}
+
+.player-match-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Featured Match (Best Match) */
+.featured-match {
+    border: 2px solid var(--tennis-green);
+    box-shadow: 0 4px 16px rgba(44, 85, 48, 0.15);
+}
+
+.featured-match:hover {
+    box-shadow: 0 8px 32px rgba(44, 85, 48, 0.2);
+}
+
+.best-match-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: linear-gradient(135deg, #ffd700, #ffb300);
+    color: #1a1a1a;
+    padding: 0.1rem 0.4rem;
+    border-radius: 6px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    z-index: 10;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ========== Player Avatar ========== */
+.player-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--tennis-green), var(--tennis-light-green));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(44, 85, 48, 0.3);
+}
+
+/* ========== Compatibility Circle - Enhanced ========== */
+.compatibility-circle {
+    text-align: center;
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    padding: 0.4rem;
+    border: 2px solid var(--tennis-green);
+    box-shadow: 0 2px 4px rgba(44, 85, 48, 0.1);
+}
+
+.compatibility-score {
+    display: block;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: white;
+    background: var(--tennis-green);
+    padding: 0.3rem 0.6rem;
+    border-radius: 8px;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(44, 85, 48, 0.3);
+}
+
+.compatibility-label {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--tennis-green);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+/* ========== Skill Badges ========== */
+.skill-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.skill-beginner {
+    background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    color: #1976d2;
+}
+
+.skill-intermediate {
+    background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+    color: #7b1fa2;
+}
+
+.skill-advanced {
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+    color: #f57c00;
+}
+
+.skill-professional {
+    background: linear-gradient(135deg, #ffebee, #ffcdd2);
+    color: #d32f2f;
+}
+
+/* ========== Quick Stats ========== */
+.player-quick-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #495057;
+}
+
+.stat-item i {
+    width: 16px;
+    font-size: 0.875rem;
+    color: var(--tennis-green);
+}
+
+/* ========== Match Highlights - Fixed Layout ========== */
+.match-highlights {
+    background: rgba(40, 167, 69, 0.08);
+    border-left: 3px solid #28a745;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0.5rem 0;
+}
+
+.match-highlights small {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.4;
+    color: #155724;
+    font-weight: 500;
+}
+
+.match-highlights i {
+    color: #28a745;
+    flex-shrink: 0;
+}
+
+/* ========== Action Buttons ========== */
+.match-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.btn-primary-action {
+    background: linear-gradient(135deg, var(--tennis-green), var(--tennis-light-green));
+    border: none;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    color: white;
+}
+
+.btn-primary-action:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(44, 85, 48, 0.3);
+    color: white;
+}
+
+.btn-secondary-action {
+    border: 2px solid var(--tennis-green);
+    color: var(--tennis-green);
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    border-radius: 8px;
+    background: transparent;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary-action:hover {
+    background: var(--tennis-green);
+    color: white;
+}
+
+/* ========== Match Quality Bar ========== */
+.match-quality-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #f8f9fa;
+}
+
+.quality-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tennis-green), var(--tennis-light-green));
+    transition: width 0.8s ease;
+}
+
+/* ========== Filter Card Enhancement ========== */
+.filter-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.filter-card .card-header {
+    background: linear-gradient(135deg, var(--tennis-green), var(--tennis-light-green));
+    color: white;
+    border-radius: 12px 12px 0 0;
+    border: none;
+}
+
+/* ========== Empty State ========== */
+.text-center .fa-search {
+    color: #dee2e6;
+}
+
+/* ========== Responsive Design ========== */
+@media (max-width: 768px) {
+    .player-match-card {
+        border-radius: 12px;
+    }
+    
+    .match-actions {
+        flex-direction: column;
+    }
+    
+    .btn-primary-action,
+    .btn-secondary-action {
+        width: 100%;
+    }
+    
+    .player-avatar {
+        width: 48px;
+        height: 48px;
+        font-size: 1.1rem;
+    }
+    
+    .compatibility-score {
+        font-size: 1.3rem;
+    }
+    
+    .best-match-badge {
+        top: 8px;
+        left: 8px;
+        padding: 0.15rem 0.5rem;
+        font-size: 0.65rem;
+    }
+    
+    .compatibility-circle {
+        padding: 0.3rem;
+    }
+}
+
+/* ========== Message Modal Enhancement ========== */
+.modal-content {
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+}
+
+.modal-header {
+    background: var(--tennis-green);
+    color: white;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+}
+
+.modal-header .btn-close {
+    filter: invert(1);
+}
+
+/* ========== Tips Alert Enhancement ========== */
+.alert-info {
+    background: rgba(44, 85, 48, 0.05);
+    border: 1px solid rgba(44, 85, 48, 0.2);
+    color: var(--tennis-green);
+}
+
+/* ========== Text Colors Override ========== */
+.text-tennis {
+    color: var(--tennis-green) !important;
+}

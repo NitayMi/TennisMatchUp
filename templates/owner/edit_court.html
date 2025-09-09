@@ -1,0 +1,427 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ court.name }} - TennisMatchUp{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/owner.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="bg-tennis-green text-white py-4">
+    <div class="container">
+        <div class="d-flex align-items-center">
+            <a href="{{ url_for('owner.manage_courts') }}" class="btn btn-outline-light me-3">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1><i class="fas fa-edit me-2"></i>Edit Court</h1>
+                <p class="lead mb-0">Update {{ court.name }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Court Status Alert -->
+            <div class="alert alert-{{ 'success' if court.is_active else 'warning' }} mb-4">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-{{ 'check-circle' if court.is_active else 'exclamation-triangle' }} fa-2x me-3"></i>
+                    <div>
+                        <h6 class="mb-1">
+                            Court Status: {{ 'Active' if court.is_active else 'Inactive' }}
+                        </h6>
+                        <small>
+                            {{ 'This court is visible to players and accepting bookings' if court.is_active else 'This court is hidden from players and not accepting new bookings' }}
+                        </small>
+                    </div>
+                    <div class="ms-auto">
+                        <a href="{{ url_for('owner.toggle_court_status', court_id=court.id) }}" 
+                           class="btn btn-sm btn-outline-{{ 'warning' if court.is_active else 'success' }}"
+                           data-court-action="{{ 'deactivate' if court.is_active else 'activate' }}"
+                           onclick="return confirmToggleStatus(this)">
+                            <i class="fas fa-{{ 'pause' if court.is_active else 'play' }}"></i>
+                            {{ 'Deactivate' if court.is_active else 'Activate' }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-tennis-ball me-2"></i>Court Information</h5>
+                        <small class="text-muted">
+                            Created {{ court.created_at.strftime('%B %d, %Y') if court.created_at else 'N/A' }}
+                        </small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {{ csrf_token() if csrf_token }}
+                        
+                        <!-- Basic Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="text-muted mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>Basic Information
+                                </h6>
+                            </div>
+                            
+                            <!-- Court Name -->
+                            <div class="col-md-6 mb-3">
+                                <label for="name" class="form-label required">Court Name *</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="name" 
+                                       name="name" 
+                                       placeholder="e.g., Sunshine Tennis Club Court 1"
+                                       required 
+                                       minlength="3"
+                                       maxlength="100"
+                                       value="{{ request.form.get('name', court.name) }}">
+                                <div class="form-text">
+                                    Choose a descriptive name that players will recognize
+                                </div>
+                            </div>
+                            
+                            <!-- Hourly Rate -->
+                            <div class="col-md-6 mb-3">
+                                <label for="hourly_rate" class="form-label required">Hourly Rate *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="hourly_rate" 
+                                           name="hourly_rate" 
+                                           placeholder="50"
+                                           required 
+                                           min="10" 
+                                           max="500"
+                                           step="5"
+                                           value="{{ request.form.get('hourly_rate', court.hourly_rate) }}">
+                                    <span class="input-group-text">per hour</span>
+                                </div>
+                                <div class="form-text">
+                                    Rate between $10-$500 per hour
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Location -->
+                        <div class="row mb-4">
+                            <div class="col-md-12 mb-3">
+                                <label for="location" class="form-label required">Location *</label>
+                                <textarea class="form-control" 
+                                          id="location" 
+                                          name="location" 
+                                          rows="2"
+                                          placeholder="e.g., 123 Main Street, Tel Aviv, Israel"
+                                          required 
+                                          minlength="5"
+                                          maxlength="500">{{ request.form.get('location', court.location) }}</textarea>
+                                <div class="form-text">
+                                    Provide a complete address that players can easily find
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Court Specifications -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="text-muted mb-3">
+                                    <i class="fas fa-cog me-2"></i>Court Specifications
+                                </h6>
+                            </div>
+                            
+                            <!-- Court Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="court_type" class="form-label">Court Type</label>
+                                <select class="form-select" id="court_type" name="court_type">
+                                    {% set current_court_type = request.form.get('court_type') or court.court_type %}
+                                    <option value="outdoor" {% if current_court_type == 'outdoor' %}selected{% endif %}>
+                                        Outdoor Court
+                                    </option>
+                                    <option value="indoor" {% if current_court_type == 'indoor' %}selected{% endif %}>
+                                        Indoor Court
+                                    </option>
+                                    <option value="covered" {% if current_court_type == 'covered' %}selected{% endif %}>
+                                        Covered Court
+                                    </option>
+                                </select>
+                                <div class="form-text">
+                                    Indoor courts are typically more expensive
+                                </div>
+                            </div>
+                            
+                            <!-- Surface Type -->
+                            <div class="col-md-6 mb-3">
+                                <label for="surface" class="form-label">Surface Type</label>
+                                <select class="form-select" id="surface" name="surface">
+                                    {% set current_surface = request.form.get('surface') or court.surface %}
+                                    <option value="hard" {% if current_surface == 'hard' %}selected{% endif %}>
+                                        Hard Court
+                                    </option>
+                                    <option value="clay" {% if current_surface == 'clay' %}selected{% endif %}>
+                                        Clay Court
+                                    </option>
+                                    <option value="grass" {% if current_surface == 'grass' %}selected{% endif %}>
+                                        Grass Court
+                                    </option>
+                                    <option value="artificial" {% if current_surface == 'artificial' %}selected{% endif %}>
+                                        Artificial Grass
+                                    </option>
+                                    <option value="carpet" {% if current_surface == 'carpet' %}selected{% endif %}>
+                                        Carpet Court
+                                    </option>
+                                </select>
+                                <div class="form-text">
+                                    Different surfaces offer different playing experiences
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Court Status -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <h6 class="text-muted mb-3">
+                                    <i class="fas fa-toggle-on me-2"></i>Availability
+                                </h6>
+                            </div>
+                            
+                            <div class="col-md-12 mb-3">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="is_active" 
+                                           name="is_active"
+                                           {{ 'checked' if (request.form.get('is_active') or court.is_active) else '' }}>
+                                    <label class="form-check-label" for="is_active">
+                                        <strong>Court is Active</strong>
+                                    </label>
+                                </div>
+                                <div class="form-text">
+                                    When active, your court will be visible to players and accept booking requests
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Description -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" 
+                                          id="description" 
+                                          name="description" 
+                                          rows="4"
+                                          placeholder="Describe your court facilities, amenities, parking, rules, etc..."
+                                          maxlength="1000">{{ request.form.get('description', court.description or '') }}</textarea>
+                                <div class="form-text">
+                                    <span id="desc-count">0</span>/1000 characters. Include amenities, parking, changing rooms, etc.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Court Statistics -->
+                        <div class="alert alert-light">
+                            <h6><i class="fas fa-chart-bar me-2"></i>Court Performance</h6>
+                            <div class="row text-center">
+                                <div class="col-md-4">
+                                    <div class="stat-item">
+                                        <div class="stat-number text-primary">
+                                            {{ court.bookings|selectattr('status', 'equalto', 'confirmed')|list|length if court.bookings else 0 }}
+                                        </div>
+                                        <small class="text-muted">Total Bookings</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-item">
+                                        <div class="stat-number text-success">
+                                            ${{ "%.0f"|format(court.bookings|selectattr('status', 'equalto', 'confirmed')|map(attribute='total_cost')|sum if court.bookings else 0) }}
+                                        </div>
+                                        <small class="text-muted">Total Revenue</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="stat-item">
+                                        <div class="stat-number text-warning">
+                                            {{ court.bookings|selectattr('status', 'equalto', 'pending')|list|length if court.bookings else 0 }}
+                                        </div>
+                                        <small class="text-muted">Pending Requests</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <a href="{{ url_for('owner.manage_courts') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <div class="d-flex gap-2">
+                                <a href="{{ url_for('owner.court_stats', court_id=court.id) }}" 
+                                   class="btn btn-outline-info">
+                                    <i class="fas fa-chart-line me-2"></i>View Stats
+                                </a>
+                                <button type="submit" class="btn btn-tennis btn-lg">
+                                    <i class="fas fa-save me-2"></i>Save Changes
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Danger Zone -->
+            <div class="card border-danger mt-4">
+                <div class="card-header bg-light border-danger">
+                    <h6 class="mb-0 text-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Danger Zone
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <!-- Hidden data for JavaScript -->
+                    <div data-court-name="{{ court.name|e }}" 
+                    data-delete-url="{{ url_for('owner.delete_court', court_id=court.id) }}"
+                    class="hidden"></div>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6>Delete this court</h6>
+                            <small class="text-muted">
+                                Once you delete a court, there is no going back. All booking history will be preserved but the court will be permanently removed.
+                            </small>
+                        </div>
+                        <button type="button" 
+                                class="btn btn-outline-danger"
+                                onclick="confirmDeleteCourt()">
+                            <i class="fas fa-trash me-2"></i>Delete Court
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--tennis-green, #2E8B57);
+    box-shadow: 0 0 0 0.2rem rgba(46, 139, 87, 0.25);
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.text-tennis-green {
+    color: var(--tennis-green, #2E8B57) !important;
+}
+
+.btn-tennis {
+    background-color: var(--tennis-green, #2E8B57);
+    border-color: var(--tennis-green, #2E8B57);
+    color: white;
+}
+
+.btn-tennis:hover {
+    background-color: #246945;
+    border-color: #246945;
+    color: white;
+}
+
+.stat-item {
+    padding: 1rem 0;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.form-check-input:checked {
+    background-color: var(--tennis-green, #2E8B57);
+    border-color: var(--tennis-green, #2E8B57);
+}
+
+@media (max-width: 768px) {
+    .d-flex.justify-content-between {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .btn-lg {
+        width: 100%;
+    }
+    
+    .d-flex.gap-2 {
+        flex-direction: column;
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Character counter for description
+    const descriptionField = document.getElementById('description');
+    const charCount = document.getElementById('desc-count');
+    
+    function updateCharCount() {
+        const count = descriptionField.value.length;
+        charCount.textContent = count;
+        
+        if (count > 800) {
+            charCount.parentElement.classList.add('text-warning');
+        } else {
+            charCount.parentElement.classList.remove('text-warning');
+        }
+    }
+    
+    if (descriptionField && charCount) {
+        descriptionField.addEventListener('input', updateCharCount);
+        updateCharCount(); // Initial count
+    }
+    
+    // Form submission handling
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            
+            // Show loading state
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving Changes...';
+            }
+        });
+    }
+});
+
+function confirmToggleStatus(element) {
+    const action = element.dataset.courtAction;
+    return confirm(`Are you sure you want to ${action} this court?`);
+}
+
+function confirmDeleteCourt() {
+    const courtName = "{{ court.name|e }}";
+    
+    if (confirm(`Are you absolutely sure you want to delete "${courtName}"?\n\nThis action cannot be undone. All future bookings will be cancelled, but booking history will be preserved.`)) {
+        if (confirm('This is your final warning. Type "DELETE" to confirm:')) {
+            // In a real implementation, this would be a form submission or AJAX call
+            // For now, we'll redirect to a delete endpoint
+            window.location.href = "{{ url_for('owner.delete_court', court_id=court.id) if url_for('owner.delete_court', court_id=court.id) else '#' }}";
+        }
+    }
+}
+</script>
+{% endblock %}

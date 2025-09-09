@@ -3,7 +3,7 @@ from models.database import db
 from models.user import User
 from models.player import Player
 from services.rule_engine import RuleEngine
-from services.cloud_service import CloudService
+from services.email_service import EmailService
 from utils.helpers import validate_email, validate_phone
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -154,7 +154,7 @@ def register():
             
             # Send welcome email
             try:
-                CloudService.send_welcome_email(user)
+                EmailService.send_welcome_email(user)
             except:
                 pass  # Don't fail registration if email fails
             
@@ -210,7 +210,7 @@ def forgot_password():
                 reset_token = f"reset_{user.id}_{user.email}"  # Simplified for demo
                 
                 # Send reset email
-                CloudService.send_password_reset(user, reset_token)
+                EmailService.send_password_reset(user, reset_token)
                 flash('Password reset instructions have been sent to your email', 'success')
             except:
                 flash('Failed to send reset email. Please try again.', 'error')

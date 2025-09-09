@@ -68,4 +68,10 @@ yarn-error.log*
 # Deployment
 .coverage
 .nyc_output
-.cache
+.cachesendgrid.env
+
+sendgrid.env
+
+# .gitignore
+.env
+*.env

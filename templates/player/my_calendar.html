@@ -212,7 +212,7 @@
 
 {% block extra_scripts %}
 <div id="calendarData" 
-     data-bookings='{{ bookings_json|safe }}' 
+     data-bookings="{{ bookings_json|safe }}" 
      data-player-id="{{ player.id if player else 0 }}" 
      style="display: none;">
 </div>

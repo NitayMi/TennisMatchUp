@@ -119,7 +119,7 @@ class AIService:
                 "options": {
                     "temperature": temperature,
                     "top_p": 0.9,
-                    "max_tokens": 150
+                    "max_tokens": 75
                 }
             }
             
@@ -176,12 +176,12 @@ class AIService:
         
         TENNIS KNOWLEDGE: {json.dumps(knowledge, indent=2)}
         
-        TASK: Provide 3 personalized tennis recommendations:
-        1. Skill improvement suggestion
-        2. Booking strategy advice  
-        3. Playing partner recommendation
-        
-        Keep advice practical and encouraging.
+        TASK: Give 3 CONCISE tips (2-3 sentences each):
+        - Skill improvement - specific drill for {player.skill_level}
+        - Booking strategy - best timing/cost tip
+        - Partner matching - compatibility advice
+
+        Keep each tip practical and actionable.
         """
         
         return AIService.generate_response(prompt)
@@ -206,8 +206,12 @@ class AIService:
         
         COURT KNOWLEDGE: {json.dumps(knowledge['court_types'], indent=2)}
         
-        TASK: Recommend the best court types and booking strategies for this player.
-        Include specific advice on timing, surface selection, and cost optimization.
+        TASK: Give 2-3 SHORT court tips:
+        1. Best surface type for {player.skill_level} level
+        2. Optimal booking times in {player.preferred_location}  
+        3. Cost-saving strategy
+
+        Max 4 sentences total.
         """
         
         return AIService.generate_response(prompt)

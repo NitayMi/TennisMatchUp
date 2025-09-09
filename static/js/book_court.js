@@ -1,10 +1,8 @@
-// תיקון מושלם ל-static/js/book_court.js
-// החלף את כל הקוד עם:
-
 /**
- * Book Court JavaScript Module - Fixed Version
+ * Book Court JavaScript Module - FIXED VERSION
  * Handles client-side interactions for court booking
  */
+
 class BookCourtManager {
     constructor() {
         this.modal = null;
@@ -15,7 +13,6 @@ class BookCourtManager {
     }
 
     init() {
-        console.log('Initializing BookCourtManager...');
         this.setupEventListeners();
         this.setupModal();
         this.populateTimeSlots();
@@ -27,36 +24,26 @@ class BookCourtManager {
         const urlParams = new URLSearchParams(window.location.search);
         const dateParam = urlParams.get('date');
         
-        console.log('URL date parameter:', dateParam);
-        
         if (dateParam) {
-            // Set the date filter in the main date input
-            const dateFilters = document.querySelectorAll('input[name="date"], input[id="date"]');
-            dateFilters.forEach(input => {
-                if (input) {
-                    input.value = dateParam;
-                    console.log('Date filter set to:', dateParam);
-                }
-            });
+            const dateInput = document.querySelector('input[type="date"]');
+            if (dateInput) {
+                dateInput.value = dateParam;
+            }
             
-            // Also set it in booking modal if it exists
             const bookingDateInput = document.getElementById('booking_date');
             if (bookingDateInput) {
                 bookingDateInput.value = dateParam;
-                console.log('Booking date set to:', dateParam);
             }
         }
     }
-
+    
     setupEventListeners() {
         // Book court buttons
         document.querySelectorAll('.book-court-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const courtId = e.target.dataset.courtId;
                 const courtName = e.target.dataset.courtName;
-                const hourlyRate = parseFloat(e.target.dataset.hourlyRate) || 0;
-                
-                console.log('Book button clicked:', {courtId, courtName, hourlyRate});
+                const hourlyRate = parseFloat(e.target.dataset.hourlyRate);
                 this.showBookingModal(courtId, courtName, hourlyRate);
             });
         });
@@ -74,267 +61,171 @@ class BookCourtManager {
         const startTimeSelect = document.getElementById('start_time');
         const endTimeSelect = document.getElementById('end_time');
         
-        if (startTimeSelect) {
+        if (startTimeSelect && endTimeSelect) {
             startTimeSelect.addEventListener('change', () => this.calculateCost());
-        }
-        if (endTimeSelect) {
             endTimeSelect.addEventListener('change', () => this.calculateCost());
-        }
-
-        // Auto-submit filters with safety checks
-        const locationFilter = document.getElementById('location');
-        const dateFilter = document.getElementById('date');
-        const filterForm = document.getElementById('filterForm');
-        
-        if (locationFilter && filterForm) {
-            locationFilter.addEventListener('change', () => filterForm.submit());
-        }
-        
-        if (dateFilter && filterForm) {
-            dateFilter.addEventListener('change', () => filterForm.submit());
         }
     }
 
     setupModal() {
         const modalElement = document.getElementById('bookingModal');
         if (modalElement) {
-            try {
-                this.modal = new bootstrap.Modal(modalElement);
-                console.log('Modal initialized successfully');
-            } catch (error) {
-                console.warn('Bootstrap Modal initialization failed:', error);
-            }
-        } else {
-            console.warn('Booking modal element not found');
+            this.modal = new bootstrap.Modal(modalElement);
         }
     }
 
     setMinDate() {
-        const dateInputs = document.querySelectorAll('input[type="date"]');
-        const today = new Date().toISOString().split('T')[0];
-        
-        dateInputs.forEach(input => {
-            if (input) {
-                input.setAttribute('min', today);
-            }
-        });
+        const dateInput = document.getElementById('booking_date');
+        if (dateInput) {
+            const today = new Date();
+            const minDate = today.toISOString().split('T')[0];
+            dateInput.setAttribute('min', minDate);
+        }
     }
 
     populateTimeSlots() {
-        const startTimeSelect = document.getElementById('start_time');
-        const endTimeSelect = document.getElementById('end_time');
+        const startSelect = document.getElementById('start_time');
+        const endSelect = document.getElementById('end_time');
         
-        if (!startTimeSelect || !endTimeSelect) {
-            console.warn('Time select elements not found');
-            return;
+        if (!startSelect || !endSelect) return;
+
+        // Generate time slots from 8:00 to 22:00
+        for (let hour = 8; hour <= 22; hour++) {
+            const timeValue = `${hour.toString().padStart(2, '0')}:00`;
+            const timeText = this.formatTime(timeValue);
+            
+            const startOption = new Option(timeText, timeValue);
+            const endOption = new Option(timeText, timeValue);
+            
+            startSelect.appendChild(startOption);
+            endSelect.appendChild(endOption);
         }
-
-        // Clear existing options (keep first "Select..." option)
-        startTimeSelect.innerHTML = '<option value="">Select...</option>';
-        endTimeSelect.innerHTML = '<option value="">Select...</option>';
-
-        // Generate time slots from 6:00 AM to 11:00 PM
-        for (let hour = 6; hour <= 23; hour++) {
-            for (let minute = 0; minute < 60; minute += 30) {
-                const timeValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                const timeDisplay = this.formatTimeDisplay(hour, minute);
-                
-                const startOption = new Option(timeDisplay, timeValue);
-                const endOption = new Option(timeDisplay, timeValue);
-                
-                startTimeSelect.add(startOption);
-                endTimeSelect.add(endOption);
-            }
-        }
-
-        console.log('Time slots populated');
     }
 
-    formatTimeDisplay(hour, minute) {
-        const ampm = hour >= 12 ? 'PM' : 'AM';
-        const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
-        const minuteStr = minute.toString().padStart(2, '0');
-        return `${displayHour}:${minuteStr} ${ampm}`;
+    formatTime(timeString) {
+        const [hour, minute] = timeString.split(':');
+        const hourNum = parseInt(hour);
+        const ampm = hourNum >= 12 ? 'PM' : 'AM';
+        const displayHour = hourNum > 12 ? hourNum - 12 : (hourNum === 0 ? 12 : hourNum);
+        return `${displayHour}:${minute} ${ampm}`;
     }
 
     showBookingModal(courtId, courtName, hourlyRate) {
-        console.log('Showing booking modal for:', {courtId, courtName, hourlyRate});
-        
         this.currentCourtId = courtId;
         this.currentCourtName = courtName;
         this.currentHourlyRate = hourlyRate;
 
-        // Update modal content with null checks
-        const modalCourtName = document.getElementById('modalCourtName');
+        // Set modal title and form data
+        const modalTitle = document.getElementById('modalCourtName');
         const modalCourtId = document.getElementById('modalCourtId');
         
-        if (modalCourtName) {
-            modalCourtName.textContent = courtName;
-        }
+        if (modalTitle) modalTitle.textContent = courtName;
+        if (modalCourtId) modalCourtId.value = courtId;
+
+        // Reset form
+        const form = document.getElementById('bookingForm');
+        if (form) form.reset();
+        if (modalCourtId) modalCourtId.value = courtId;
         
-        if (modalCourtId) {
-            modalCourtId.value = courtId;
-        }
-
-        // Reset form safely
-        const bookingForm = document.getElementById('bookingForm');
-        if (bookingForm) {
-            bookingForm.reset();
-            // Restore court ID after reset
-            if (modalCourtId) {
-                modalCourtId.value = courtId;
-            }
-        }
-
-        // Hide cost info if it exists
         const costInfo = document.getElementById('costInfo');
-        if (costInfo) {
-            costInfo.style.display = 'none';
-        }
+        if (costInfo) costInfo.style.display = 'none';
 
         // Show modal
         if (this.modal) {
-            try {
-                this.modal.show();
-            } catch (error) {
-                console.error('Error showing modal:', error);
-                // Fallback: show modal manually if Bootstrap fails
-                const modalElement = document.getElementById('bookingModal');
-                if (modalElement) {
-                    modalElement.style.display = 'block';
-                    modalElement.classList.add('show');
-                }
-            }
-        } else {
-            console.warn('Modal not available');
+            this.modal.show();
         }
     }
 
     calculateCost() {
-        const startTimeElement = document.getElementById('start_time');
-        const endTimeElement = document.getElementById('end_time');
-        
-        if (!startTimeElement || !endTimeElement) {
-            return; // Elements don't exist, exit gracefully
-        }
-        
-        const startTime = startTimeElement.value;
-        const endTime = endTimeElement.value;
+        const startTime = document.getElementById('start_time');
+        const endTime = document.getElementById('end_time');
         const costInfo = document.getElementById('costInfo');
-
-        if (!startTime || !endTime) {
-            if (costInfo) {
-                costInfo.style.display = 'none';
-            }
+        
+        if (!startTime || !endTime || !costInfo) return;
+        
+        if (!startTime.value || !endTime.value) {
+            costInfo.style.display = 'none';
             return;
         }
 
-        try {
-            // Calculate duration
-            const start = new Date(`2000-01-01 ${startTime}`);
-            const end = new Date(`2000-01-01 ${endTime}`);
+        // Calculate duration
+        const start = new Date(`2000-01-01 ${startTime.value}`);
+        const end = new Date(`2000-01-01 ${endTime.value}`);
 
-            if (end <= start) {
-                if (costInfo) {
-                    costInfo.style.display = 'none';
-                }
-                return;
-            }
-
-            const durationHours = (end - start) / (1000 * 60 * 60);
-            const totalCost = durationHours * this.currentHourlyRate;
-
-            // Update display elements if they exist
-            const durationElement = document.getElementById('duration');
-            const totalCostElement = document.getElementById('totalCost');
-            
-            if (durationElement) {
-                durationElement.textContent = 
-                    durationHours === 1 ? '1 hour' : `${durationHours} hours`;
-            }
-            
-            if (totalCostElement) {
-                totalCostElement.textContent = `$${totalCost.toFixed(2)}`;
-            }
-            
-            if (costInfo) {
-                costInfo.style.display = 'block';
-            }
-
-        } catch (error) {
-            console.error('Error calculating cost:', error);
-            if (costInfo) {
-                costInfo.style.display = 'none';
-            }
+        if (end <= start) {
+            costInfo.style.display = 'none';
+            return;
         }
+
+        const durationHours = (end - start) / (1000 * 60 * 60);
+        const totalCost = durationHours * this.currentHourlyRate;
+
+        // Display cost info
+        const durationEl = document.getElementById('duration');
+        const totalCostEl = document.getElementById('totalCost');
+        
+        if (durationEl) {
+            durationEl.textContent = durationHours === 1 ? '1 hour' : `${durationHours} hours`;
+        }
+        if (totalCostEl) {
+            totalCostEl.textContent = `₪${totalCost.toFixed(2)}`;
+        }
+        
+        costInfo.style.display = 'block';
     }
 
-    submitBooking() {
-        console.log('Submitting booking...');
-        
-        // Get form data
+    
+    async submitBooking() {
         const form = document.getElementById('bookingForm');
-        if (!form) {
-            console.error('Booking form not found');
-            return;
-        }
+        if (!form) return;
 
-        const formData = new FormData(form);
+        const submitBtn = document.getElementById('submitBookingBtn');
+        if (!submitBtn) return;
         
-        // Add CSRF token if available
-        const csrfToken = document.querySelector('[name=csrf_token]');
-        if (csrfToken) {
-            formData.append('csrf_token', csrfToken.value);
-        }
+        const submitText = submitBtn.querySelector('.submit-text');
+        const loadingText = submitBtn.querySelector('.loading-text');
 
-        // Show loading state
-        const submitButton = form.querySelector('button[type="submit"]');
-        const originalText = submitButton ? submitButton.textContent : '';
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.textContent = 'Booking...';
-        }
+        // Show loading state - עם בדיקות null
+        if (submitText) submitText.style.display = 'none';
+        if (loadingText) loadingText.style.display = 'block';
+        submitBtn.disabled = true;
 
-        // Submit to server
-        fetch('/player/submit-booking', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Success feedback
-                if (this.modal) {
-                    this.modal.hide();
-                }
-                
-                // Show success message
-                alert('Booking successful! Redirecting to your calendar...');
-                
-                // Redirect to calendar
-                window.location.href = '/player/my-calendar';
+        try {
+            const formData = new FormData(form);
+            const response = await fetch('/player/submit-booking', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Success - reload page or redirect
+                window.location.reload();
             } else {
-                // Error feedback
-                alert('Booking failed: ' + (data.error || 'Unknown error'));
+                // Show error
+                alert(result.error || 'Booking failed. Please try again.');
             }
-        })
-        .catch(error => {
-            console.error('Booking submission error:', error);
-            alert('An error occurred while booking. Please try again.');
-        })
-        .finally(() => {
-            // Restore button state
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.textContent = originalText;
-            }
-        });
+        } catch (error) {
+            console.error('Booking error:', error);
+            alert('Network error. Please try again.');
+        } finally {
+            // Reset button state - עם בדיקות null
+            if (submitText) submitText.style.display = 'block';
+            if (loadingText) loadingText.style.display = 'none';
+            submitBtn.disabled = false;
+        }
     }
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('BookCourtManager initializing...');
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
     window.bookCourtManager = new BookCourtManager();
-    console.log('BookCourtManager ready');
 });
+
+// Global function for template compatibility
+function openBookingModal(courtId, courtName, hourlyRate) {
+    if (window.bookCourtManager) {
+        window.bookCourtManager.showBookingModal(courtId, courtName, hourlyRate);
+    }
+}

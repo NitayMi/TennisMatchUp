@@ -1,0 +1,186 @@
+{
+  "court_types": {
+    "hard": {
+      "description": "Most common surface, medium pace",
+      "pros": "Consistent bounce, all-weather play",
+      "cons": "Can be tough on joints with extended play",
+      "recommended_for": ["beginner", "intermediate", "advanced"],
+      "ideal_conditions": "Year-round, any weather",
+      "maintenance": "Low maintenance required",
+      "ball_behavior": "Medium bounce, predictable trajectory"
+    },
+    "clay": {
+      "description": "Slow surface, high bounce", 
+      "pros": "Easier on joints, favors defensive play, teaches patience",
+      "cons": "Weather dependent, requires regular maintenance",
+      "recommended_for": ["intermediate", "advanced"],
+      "ideal_conditions": "Dry weather, no wind",
+      "maintenance": "Daily watering and brushing required",
+      "ball_behavior": "High bounce, slower pace, more spin-friendly"
+    },
+    "grass": {
+      "description": "Fast surface, low bounce",
+      "pros": "Traditional surface, unique playing style, elegant game",
+      "cons": "High maintenance, weather sensitive, limited availability", 
+      "recommended_for": ["advanced", "professional"],
+      "ideal_conditions": "Dry, mild weather",
+      "maintenance": "Extensive daily care required",
+      "ball_behavior": "Low bounce, fast pace, unpredictable bounces"
+    },
+    "indoor": {
+      "description": "Controlled environment, consistent conditions",
+      "pros": "Weather independent, consistent lighting, no wind",
+      "cons": "Can feel confined, different air circulation",
+      "recommended_for": ["all levels"],
+      "ideal_conditions": "Any weather, year-round",
+      "maintenance": "Climate control required",
+      "ball_behavior": "Slightly slower due to air circulation"
+    }
+  },
+  "skill_development": {
+    "beginner": {
+      "focus": ["basic strokes", "footwork", "court positioning", "serve technique"],
+      "recommended_frequency": "2-3 times per week",
+      "session_duration": "60-90 minutes",
+      "practice_tips": [
+        "Focus on consistent contact point",
+        "Practice against a wall for repetition",
+        "Work on split step timing",
+        "Master the ready position",
+        "Start with slower balls"
+      ],
+      "common_mistakes": ["rushing shots", "poor grip", "wrong stance"],
+      "progression_goals": "Develop muscle memory and basic consistency"
+    },
+    "intermediate": {
+      "focus": ["spin techniques", "net play", "strategy", "shot variety"],
+      "recommended_frequency": "3-4 times per week", 
+      "session_duration": "90-120 minutes",
+      "practice_tips": [
+        "Incorporate drills with movement",
+        "Practice different shot combinations",
+        "Work on mental toughness",
+        "Study opponent weaknesses",
+        "Develop signature shots"
+      ],
+      "common_mistakes": ["overplaying", "poor shot selection", "inconsistent serve"],
+      "progression_goals": "Tactical awareness and shot consistency under pressure"
+    },
+    "advanced": {
+      "focus": ["advanced tactics", "match play", "physical conditioning", "mental game"],
+      "recommended_frequency": "4-5 times per week",
+      "session_duration": "120+ minutes",
+      "practice_tips": [
+        "Analyze match videos regularly",
+        "Practice under pressure situations",
+        "Focus on opponent's weaknesses",
+        "Develop multiple game styles",
+        "Work with coach on strategy"
+      ],
+      "common_mistakes": ["overconfidence", "neglecting basics", "poor fitness"],
+      "progression_goals": "Tournament readiness and advanced match strategy"
+    },
+    "professional": {
+      "focus": ["peak performance", "competition strategy", "injury prevention"],
+      "recommended_frequency": "Daily training",
+      "session_duration": "Multiple sessions per day",
+      "practice_tips": [
+        "Periodized training cycles",
+        "Mental performance coaching",
+        "Advanced analytics review",
+        "Recovery and nutrition focus"
+      ],
+      "common_mistakes": ["overtraining", "neglecting recovery"],
+      "progression_goals": "Peak competitive performance"
+    }
+  },
+  "playing_styles": {
+    "aggressive": {
+      "description": "Offensive baseline player who seeks to control points",
+      "strengths": ["powerful shots", "quick points", "intimidation factor"],
+      "court_preference": ["hard", "grass"],
+      "partner_compatibility": ["defensive", "all-court"],
+      "recommended_strategy": "Take balls early, move forward when possible",
+      "fitness_focus": "Power and explosive movements"
+    },
+    "defensive": {
+      "description": "Patient, counter-attacking player with excellent court coverage",
+      "strengths": ["consistency", "court coverage", "mental toughness"],
+      "court_preference": ["clay", "hard"],
+      "partner_compatibility": ["aggressive", "all-court"],
+      "recommended_strategy": "Extend rallies, wait for opponent errors",
+      "fitness_focus": "Endurance and lateral movement"
+    },
+    "all-court": {
+      "description": "Versatile player comfortable anywhere on court",
+      "strengths": ["adaptability", "variety", "tactical intelligence"],
+      "court_preference": ["any"],
+      "partner_compatibility": ["any"],
+      "recommended_strategy": "Adapt to opponent and conditions",
+      "fitness_focus": "Overall athleticism and flexibility"
+    },
+    "serve-volley": {
+      "description": "Attacking player who follows serve to net",
+      "strengths": ["quick points", "pressure on opponent", "net skills"],
+      "court_preference": ["grass", "hard"],
+      "partner_compatibility": ["baseline players"],
+      "recommended_strategy": "Strong serve followed by aggressive net play",
+      "fitness_focus": "Quick reactions and forward movement"
+    }
+  },
+  "booking_strategies": {
+    "peak_hours": {
+      "times": ["17:00-20:00", "weekend_mornings", "7:00-9:00"],
+      "pricing": "highest rates",
+      "availability": "limited",
+      "booking_tips": "Book 1-2 weeks in advance"
+    },
+    "off_peak_savings": {
+      "description": "Book weekday mornings or afternoons for 20-40% savings",
+      "best_times": ["10:00-15:00 weekdays", "late evening"],
+      "savings": "20-40% off peak rates"
+    },
+    "weather_considerations": {
+      "sunny": {
+        "advice": "Book early morning (7-9 AM) or late afternoon (5-7 PM)",
+        "avoid": "midday sessions in summer"
+      },
+      "cloudy": {
+        "advice": "Ideal conditions, book anytime",
+        "benefits": "consistent lighting, comfortable temperature"
+      },
+      "windy": {
+        "advice": "Indoor courts recommended, or sheltered outdoor courts",
+        "playing_tips": "adjust shot trajectory, use heavier balls"
+      },
+      "rainy": {
+        "advice": "Indoor courts only",
+        "alternatives": "practice serves and fitness training"
+      }
+    }
+  },
+  "injury_prevention": {
+    "common_injuries": {
+      "tennis_elbow": {
+        "prevention": "proper grip size, technique work, strength training",
+        "warning_signs": "elbow pain after playing"
+      },
+      "shoulder_issues": {
+        "prevention": "proper serve technique, rotator cuff strengthening",
+        "warning_signs": "shoulder pain during serve"
+      },
+      "knee_problems": {
+        "prevention": "proper footwork, court shoes, quadriceps strengthening",
+        "warning_signs": "knee pain during lateral movement"
+      }
+    },
+    "warm_up": {
+      "duration": "10-15 minutes",
+      "components": ["light cardio", "dynamic stretching", "shadow swings"]
+    },
+    "cool_down": {
+      "duration": "10 minutes",
+      "components": ["static stretching", "hydration", "ice if needed"]
+    }
+  }
+}

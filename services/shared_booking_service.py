@@ -28,7 +28,8 @@ class SharedBookingService:
         p2_coords = player2.get_coordinates()
         
         if not p1_coords or not p2_coords:
-            return []
+            # Fallback to text-based recommendations
+            return MatchingEngine._recommend_courts_by_location_text(player1, player2, max_courts)
         
         # Use MatchingEngine's court suggestion algorithm
         court_suggestions = MatchingEngine.recommend_courts_for_pair(

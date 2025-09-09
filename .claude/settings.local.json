@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(/C:\\Colman\\TennisMatchUp\\TennisMatchUp\\templates/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

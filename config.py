@@ -12,10 +12,6 @@ class Config:
     # For development - SQLite
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///tennis_matchup.db'
     
-    # For production - Somee.com SQL Server
-    # SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-    #     'mssql+pyodbc://username:password@server/database?driver=ODBC+Driver+17+for+SQL+Server'
-    
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_RECORD_QUERIES = True
     
@@ -50,10 +46,10 @@ class DevelopmentConfig(Config):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///tennis_matchup_dev.db'
 
 class ProductionConfig(Config):
-    """Production configuration"""
+    """Production configuration - AWS RDS PostgreSQL"""
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'mssql+pyodbc://username:password@server/database?driver=ODBC+Driver+17+for+SQL+Server'
+        'postgresql://tennisadmin:YOUR_PASSWORD@tennis-matchup-db.xxxxx.us-east-1.rds.amazonaws.com:5432/tennismatchup'
 
 class TestingConfig(Config):
     """Testing configuration"""

@@ -1,281 +1,223 @@
-// TennisMatchUp - Enhanced Matching System JavaScript
+// static/js/matching.js - PROFESSIONAL UI INTERACTIONS ENHANCEMENT
 
-const MatchingSystem = {
-    
-    // Send match request to another player
-    sendMatchRequest: function(playerId, playerName) {
-        if (confirm(`Send a match request to ${playerName}?`)) {
-            // Show loading state
-            this.updateMatchRequestButton(playerId, 'loading');
-            
-            fetch('/player/send-match-request', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    player_id: playerId,
-                    message: `Hi ${playerName}, I'd like to play tennis with you. Are you available for a match?`
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    this.showToast(data.message, 'success');
-                    this.updateMatchRequestButton(playerId, 'sent');
-                } else {
-                    this.showToast(data.error || 'Failed to send request', 'error');
-                    this.updateMatchRequestButton(playerId, 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                this.showToast('Network error occurred', 'error');
-                this.updateMatchRequestButton(playerId, 'error');
-            });
-        }
-    },
-    
-    // Send message to another player (general messaging)
-    sendMessage: function(playerId, playerName) {
-        const message = prompt(`Send a message to ${playerName}:`);
-        if (message && message.trim()) {
-            fetch('/player/send-message', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    'receiver_id': playerId,
-                    'content': message.trim()
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    this.showToast(`Message sent to ${playerName}!`, 'success');
-                } else {
-                    this.showToast(data.error || 'Failed to send message', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                this.showToast('Network error occurred', 'error');
-            });
-        }
-    },
-    
-    // Update match request button state
-    updateMatchRequestButton: function(playerId, state) {
-        const button = document.querySelector(`[data-player-id="${playerId}"]`);
-        if (button) {
-            switch(state) {
-                case 'loading':
-                    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending...';
-                    button.className = 'btn btn-outline-secondary btn-sm';
-                    button.disabled = true;
-                    break;
-                case 'sent':
-                    button.innerHTML = '<i class="fas fa-clock me-2"></i>Request Sent';
-                    button.className = 'btn btn-outline-success btn-sm';
-                    button.disabled = true;
-                    break;
-                case 'accepted':
-                    button.innerHTML = '<i class="fas fa-check me-2"></i>Matched!';
-                    button.className = 'btn btn-success btn-sm';
-                    break;
-                case 'error':
-                    button.innerHTML = '<i class="fas fa-exclamation-triangle me-2"></i>Try Again';
-                    button.className = 'btn btn-outline-danger btn-sm';
-                    button.disabled = false;
-                    break;
-            }
-        }
-    },
-    
-    // Show toast notification
-    showToast: function(message, type = 'info') {
-        // Create toast element if it doesn't exist
-        let toastContainer = document.getElementById('toast-container');
-        if (!toastContainer) {
-            toastContainer = document.createElement('div');
-            toastContainer.id = 'toast-container';
-            toastContainer.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-            `;
-            document.body.appendChild(toastContainer);
-        }
-        
-        const toast = document.createElement('div');
-        const bgColor = {
-            'success': 'bg-success',
-            'error': 'bg-danger', 
-            'warning': 'bg-warning',
-            'info': 'bg-info'
-        }[type] || 'bg-info';
-        
-        toast.className = `alert ${bgColor} text-white alert-dismissible fade show`;
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
-        `;
-        
-        toastContainer.appendChild(toast);
-        
-        // Auto remove after 5 seconds
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.remove();
-            }
-        }, 5000);
-    },
-    
-    // Initialize matching page
-    initMatchingPage: function() {
-        // Add event listeners to match request buttons
-        document.querySelectorAll('[data-action="suggest-match"]').forEach(button => {
-            button.addEventListener('click', function() {
-                const playerId = this.getAttribute('data-player-id');
-                const playerName = this.getAttribute('data-player-name');
-                MatchingSystem.sendMatchRequest(playerId, playerName);
-            });
-        });
-        
-        // Add event listeners to send message buttons
-        document.querySelectorAll('[data-action="send-message"]').forEach(button => {
-            button.addEventListener('click', function() {
-                const playerId = this.getAttribute('data-player-id');
-                const playerName = this.getAttribute('data-player-name');
-                MatchingSystem.sendMessage(playerId, playerName);
-            });
-        });
-        
-        // Auto-refresh search results every 60 seconds
-        setInterval(() => {
-            const currentForm = document.querySelector('#match-search-form');
-            if (currentForm && document.visibilityState === 'visible') {
-                this.refreshMatches();
-            }
-        }, 60000);
-    },
-    
-    // Refresh match results
-    refreshMatches: function() {
-        const form = document.querySelector('#match-search-form');
-        if (form) {
-            const formData = new FormData(form);
-            const params = new URLSearchParams(formData);
-            
-            fetch(`/player/find-matches?${params}`)
-            .then(response => response.text())
-            .then(html => {
-                // Update only the results section
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-                const newResults = doc.querySelector('#match-results');
-                const currentResults = document.querySelector('#match-results');
-                
-                if (newResults && currentResults) {
-                    currentResults.innerHTML = newResults.innerHTML;
-                    // Re-initialize event listeners for new content
-                    this.initMatchingPage();
-                }
-            })
-            .catch(error => {
-                console.error('Error refreshing matches:', error);
-            });
-        }
-    },
-    
-    // Save search preferences
-    saveSearchPreferences: function() {
-        const form = document.querySelector('#match-search-form');
-        if (form) {
-            const preferences = {};
-            const formData = new FormData(form);
-            
-            for (let [key, value] of formData.entries()) {
-                if (value) {
-                    preferences[key] = value;
-                }
-            }
-            
-            try {
-                localStorage.setItem('tennis_search_prefs', JSON.stringify(preferences));
-            } catch (error) {
-                console.warn('Could not save search preferences:', error);
-            }
-        }
-    },
-    
-    // Load search preferences
-    loadSearchPreferences: function() {
-        try {
-            const saved = localStorage.getItem('tennis_search_prefs');
-            if (saved) {
-                const preferences = JSON.parse(saved);
-                const form = document.querySelector('#match-search-form');
-                
-                if (form) {
-                    Object.keys(preferences).forEach(key => {
-                        const field = form.querySelector(`[name="${key}"]`);
-                        if (field && preferences[key]) {
-                            field.value = preferences[key];
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            console.warn('Could not load search preferences:', error);
-        }
-    },
-    
-    // Expand search criteria
-    expandSearch: function() {
-        const form = document.querySelector('#match-search-form');
-        if (form) {
-            // Clear restrictive filters
-            const skillSelect = form.querySelector('[name="skill_level"]');
-            if (skillSelect) skillSelect.value = '';
-            
-            const locationInput = form.querySelector('[name="location"]');
-            if (locationInput) locationInput.value = '';
-            
-            // Show message and submit
-            this.showToast('Expanding search criteria...', 'info');
-            form.submit();
-        }
-    }
-};
-
-// Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    if (document.querySelector('.match-card')) {
-        MatchingSystem.initMatchingPage();
-        MatchingSystem.loadSearchPreferences();
+    
+    // ========== Message Modal Handler ==========
+    const messageModal = document.getElementById('messageModal');
+    const modalPlayerName = document.getElementById('modal-player-name');
+    const modalPlayerId = document.getElementById('modal-player-id');
+    
+    if (messageModal) {
+        // Handle message button clicks
+        document.addEventListener('click', function(e) {
+            if (e.target.matches('[data-bs-target="#messageModal"]') || 
+                e.target.closest('[data-bs-target="#messageModal"]')) {
+                
+                const button = e.target.closest('[data-bs-target="#messageModal"]');
+                const playerId = button.getAttribute('data-player-id');
+                const playerName = button.getAttribute('data-player-name');
+                
+                if (modalPlayerName && modalPlayerId) {
+                    modalPlayerName.textContent = playerName;
+                    modalPlayerId.value = playerId;
+                }
+            }
+        });
+    }
+    
+    // ========== Search Form Enhancement ==========
+    const searchForm = document.getElementById('match-search-form');
+    if (searchForm) {
+        // Add loading state during search
+        searchForm.addEventListener('submit', function() {
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Searching...';
+                submitButton.disabled = true;
+            }
+        });
+    }
+    
+    // ========== Card Animations ==========
+    const playerCards = document.querySelectorAll('.player-match-card');
+    
+    // Add staggered animation for cards on load
+    playerCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
         
-        // Save preferences when form changes
-        const form = document.querySelector('#match-search-form');
-        if (form) {
-            form.addEventListener('change', () => {
-                MatchingSystem.saveSearchPreferences();
+        setTimeout(() => {
+            card.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+    
+    // ========== Enhanced Button Interactions ==========
+    const primaryButtons = document.querySelectorAll('.btn-primary-action');
+    
+    primaryButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Add click animation
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 150);
+        });
+    });
+    
+    // ========== Match Quality Bar Animation ==========
+    const qualityBars = document.querySelectorAll('.quality-fill');
+    
+    // Animate quality bars on scroll into view
+    const animateQualityBars = () => {
+        qualityBars.forEach(bar => {
+            const rect = bar.getBoundingClientRect();
+            if (rect.top < window.innerHeight && rect.bottom > 0) {
+                const width = bar.style.width;
+                bar.style.width = '0%';
+                setTimeout(() => {
+                    bar.style.width = width;
+                }, 100);
+            }
+        });
+    };
+    
+    // Trigger animation on load and scroll
+    setTimeout(animateQualityBars, 500);
+    window.addEventListener('scroll', animateQualityBars);
+    
+    // ========== Filter Persistence ==========
+    // Save filter state to localStorage for better UX
+    if (searchForm) {
+        const filterInputs = searchForm.querySelectorAll('select, input');
+        
+        filterInputs.forEach(input => {
+            // Load saved values only if input is empty
+            if (input.name) {
+                const savedValue = localStorage.getItem(`filter_${input.name}`);
+                if (savedValue && !input.value) {
+                    input.value = savedValue;
+                }
+                
+                // Save on change
+                input.addEventListener('change', function() {
+                    localStorage.setItem(`filter_${this.name}`, this.value);
+                });
+            }
+        });
+    }
+    
+    // ========== Responsive Card Layout ==========
+    const adjustCardLayout = () => {
+        const container = document.querySelector('#match-results .row');
+        if (!container) return;
+        
+        const cards = container.querySelectorAll('.player-match-card');
+        const containerWidth = container.offsetWidth;
+        
+        // Adjust column classes based on screen size and number of cards
+        if (window.innerWidth >= 1200 && cards.length >= 3) {
+            cards.forEach(card => {
+                const col = card.closest('[class*="col-"]');
+                if (col) {
+                    col.className = 'col-lg-6 col-xl-4 mb-4';
+                }
+            });
+        } else if (window.innerWidth >= 768) {
+            cards.forEach(card => {
+                const col = card.closest('[class*="col-"]');
+                if (col) {
+                    col.className = 'col-md-6 mb-4';
+                }
             });
         }
+    };
+    
+    // Adjust layout on load and resize
+    adjustCardLayout();
+    window.addEventListener('resize', adjustCardLayout);
+    
+    // ========== Accessibility Enhancements ==========
+    
+    // Add keyboard navigation for cards
+    playerCards.forEach(card => {
+        card.setAttribute('tabindex', '0');
+        
+        card.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const primaryButton = this.querySelector('.btn-primary-action');
+                if (primaryButton) {
+                    primaryButton.click();
+                }
+            }
+        });
+    });
+    
+    // ========== Performance Optimization ==========
+    
+    // Lazy load card interactions
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '50px'
+    };
+    
+    const cardObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const card = entry.target;
+                card.classList.add('visible');
+                cardObserver.unobserve(card);
+            }
+        });
+    }, observerOptions);
+    
+    playerCards.forEach(card => {
+        cardObserver.observe(card);
+    });
+    
+    // ========== Error Handling ==========
+    
+    // Handle form submission errors gracefully
+    window.addEventListener('unhandledrejection', function(e) {
+        console.error('Form submission error:', e.reason);
+        
+        // Reset any loading buttons
+        const loadingButtons = document.querySelectorAll('button[disabled]');
+        loadingButtons.forEach(button => {
+            button.disabled = false;
+            button.innerHTML = button.innerHTML.replace(/fa-spinner fa-spin/, 'fa-search');
+        });
+    });
+    
+    // ========== Analytics Tracking (Optional) ==========
+    
+    // Track user interactions for UX improvement
+    const trackInteraction = (action, element) => {
+        // Only log to console in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log(`User interaction: ${action}`, element);
+        }
+        
+        // In production, this would send to analytics service
+        // analytics.track(action, { element: element.className });
+    };
+    
+    // Track button clicks
+    document.addEventListener('click', function(e) {
+        if (e.target.matches('.btn-primary-action')) {
+            trackInteraction('suggest_court_clicked', e.target);
+        } else if (e.target.matches('.btn-secondary-action')) {
+            trackInteraction('send_message_clicked', e.target);
+        }
+    });
+    
+    // Track search form usage
+    if (searchForm) {
+        searchForm.addEventListener('submit', function() {
+            trackInteraction('search_performed', this);
+        });
     }
+    
 });
-
-// Global functions for inline event handlers
-window.suggestMatch = function(playerId, playerName) {
-    MatchingSystem.sendMatchRequest(playerId, playerName);
-};
-
-window.sendMessage = function(playerId, playerName) {
-    MatchingSystem.sendMessage(playerId, playerName);
-};
-
-window.expandSearch = function() {
-    MatchingSystem.expandSearch();
-};

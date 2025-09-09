@@ -80,6 +80,104 @@
         </div>
     </div>
     
+    <!-- AI Action Center -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-robot"></i> AI Action Center</h5>
+                    <small class="badge badge-light">NEW</small>
+                </div>
+                <div class="card-body">
+                    <!-- Quick Actions -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-bolt"></i> Quick Actions
+                        </h6>
+                        <div id="ai-quick-actions">
+                            <div class="text-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="sr-only">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Natural Language Input -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-comments"></i> Tell AI What You Want
+                        </h6>
+                        <div class="input-group">
+                            <input type="text" 
+                                   id="ai-action-input" 
+                                   class="form-control" 
+                                   placeholder="e.g., 'Find me a partner in Rishon LeZion for Saturday afternoon'"
+                                   style="border-radius: 25px 0 0 25px;">
+                            <div class="input-group-append">
+                                <button id="ai-action-send" 
+                                        class="btn btn-success" 
+                                        type="button"
+                                        style="border-radius: 0 25px 25px 0;">
+                                    <i class="fas fa-paper-plane"></i> Ask AI
+                                </button>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">
+                            Try: "Find partner", "Book court", "Available this weekend", "Complete match setup"
+                        </small>
+                    </div>
+                    
+                    <!-- Action Results -->
+                    <div id="ai-action-results">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Recommendations -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-lightbulb text-warning"></i> AI Recommendations</h5>
+                    <button id="refresh-recommendations" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="ai-recommendations">
+                        <div class="text-center">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="sr-only">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-brain text-info"></i> Smart Court Advisor</h5>
+                    <button id="get-court-advice" class="btn btn-sm btn-outline-info">
+                        <i class="fas fa-search"></i> Get Advice
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="court-recommendations">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            Click "Get Advice" for personalized court recommendations based on your skill level and preferences.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Main Content -->
     <div class="row">
         <!-- Upcoming Bookings -->
@@ -157,8 +255,8 @@
                                     {% endif %}
                                 </div>
                                 <div>
-                                    <a href="{{ url_for('player.chat', other_user_id=match.user.id) }}" 
-                                       class="btn btn-sm btn-tennis">
+                                    <a href="{{ url_for('player.messages') }}" 
+                                    class="btn btn-sm btn-tennis">
                                         <i class="fas fa-comment"></i>
                                     </a>
                                 </div>
@@ -221,7 +319,7 @@
                             {% endif %}
                         </div>
                         <div class="col-md-4 text-md-end">
-                            <a href="{{ url_for('player.edit_profile') }}" class="btn btn-outline-tennis">
+                            <a href="{{ url_for('auth.profile') }}" class="btn btn-outline-tennis">
                                 <i class="fas fa-edit me-2"></i>Edit Profile
                             </a>
                         </div>
@@ -231,4 +329,5 @@
         </div>
     </div>
 </div>
+
 {% endblock %}

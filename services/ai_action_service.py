@@ -45,8 +45,8 @@ class AIActionService:
                 if conflicts == 0:
                     # Calculate compatibility score
                     current_player = Player.query.filter_by(user_id=user_id).first()
-                    compatibility = MatchingEngine.calculate_compatibility_score(
-                        current_player, 
+                    compatibility = MatchingEngine._calculate_perfect_compatibility(
+                        current_player,
                         player
                     ) if current_player else 85
                     
@@ -100,7 +100,7 @@ class AIActionService:
                         'court_id': court.id,
                         'name': court.name,
                         'location': court.location,
-                        'surface': court.surface_type,
+                        'surface': court.surface,
                         'hourly_rate': float(court.hourly_rate),
                         'total_cost': float(total_cost),
                         'duration': f"{duration_hours}h",

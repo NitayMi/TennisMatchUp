@@ -95,3 +95,5 @@ if __name__ == '__main__':
         port=5000,
         debug=True
     )
+
+# To run in production, use a WSGI server like Gunicorn or uWSGI

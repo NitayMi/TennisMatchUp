@@ -1,5 +1,5 @@
 aiohappyeyeballs==2.6.1
-aiohttp==3.8.1
+# aiohttp==3.8.1
 aiosignal==1.4.0
 alembic==1.16.5
 async-timeout==4.0.3
@@ -24,7 +24,7 @@ Flask-WTF==1.1.1
 frozenlist==1.7.0
 geographiclib==2.1
 geopy==2.4.1
-github==1.2.7
+# github==1.2.7
 greenlet==3.2.4
 gunicorn==21.2.0
 idna==3.10

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: tennismatchup
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "./start.sh"
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true

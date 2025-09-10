@@ -25,6 +25,7 @@ class Court(db.Model):
     advance_booking_days = db.Column(db.Integer, default=30, nullable=False)
     cancellation_policy = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    image_url = db.Column(db.String(500), nullable=True)  # ⟵ שדה חדש: קישור יחיד לתמונה
     image_urls = db.Column(db.Text, nullable=True)  # JSON array of image URLs
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -32,7 +33,7 @@ class Court(db.Model):
     # Relationships
     bookings = db.relationship('Booking', backref='court', cascade='all, delete-orphan')
     
-    def __init__(self, owner_id, name, location, court_type, surface, hourly_rate, description=None):
+    def __init__(self, owner_id, name, location, court_type, surface, hourly_rate, description=None, image_url=None):
         self.owner_id = owner_id
         self.name = name
         self.location = location
@@ -41,6 +42,7 @@ class Court(db.Model):
         self.hourly_rate = hourly_rate
         self.description = description
         self.is_active = True
+        self.image_url = image_url  # ⟵ אתחול שדה חדש   
     
     def get_surface_display(self):
         """Get formatted surface type"""
@@ -159,6 +161,7 @@ class Court(db.Model):
             'advance_booking_days': self.advance_booking_days,
             'cancellation_policy': self.cancellation_policy,
             'is_active': self.is_active,
+            'image_url': self.image_url,
             'image_urls': self.image_urls,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

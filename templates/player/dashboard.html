@@ -79,8 +79,7 @@
             </div>
         </div>
     </div>
-    
-    <!-- AI Action Center -->
+    <!-- AI Action Center - Fixed Version -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
@@ -94,11 +93,26 @@
                         <h6 class="text-muted mb-3">
                             <i class="fas fa-bolt"></i> Quick Actions
                         </h6>
-                        <div id="ai-quick-actions">
-                            <div class="text-center">
-                                <div class="spinner-border text-primary" role="status">
-                                    <span class="sr-only">Loading...</span>
-                                </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-2">
+                                <button class="btn btn-success w-100 quick-action" data-action="find_partner_now">
+                                    <i class="fas fa-users"></i> Find Partner Now
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <button class="btn btn-info w-100 quick-action" data-action="court_and_partner">
+                                    <i class="fas fa-calendar-plus"></i> Court + Partner
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <button class="btn btn-warning w-100 quick-action" data-action="my_availability">
+                                    <i class="fas fa-clock"></i> My Availability
+                                </button>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <button class="btn btn-secondary w-100 quick-action" data-action="weekend_matches">
+                                    <i class="fas fa-calendar-week"></i> Weekend Matches
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -110,12 +124,12 @@
                         </h6>
                         <div class="input-group">
                             <input type="text" 
-                                   id="ai-action-input" 
-                                   class="form-control" 
-                                   placeholder="e.g., 'Find me a partner in Rishon LeZion for Saturday afternoon'"
-                                   style="border-radius: 25px 0 0 25px;">
+                                id="ai-action-input" 
+                                class="form-control" 
+                                placeholder="e.g., 'Find me a partner in Rishon LeZion for Saturday afternoon'"
+                                style="border-radius: 25px 0 0 25px;">
                             <div class="input-group-append">
-                                <button id="ai-action-send" 
+                                <button id="ask-ai-btn" 
                                         class="btn btn-success" 
                                         type="button"
                                         style="border-radius: 0 25px 25px 0;">
@@ -128,14 +142,14 @@
                         </small>
                     </div>
                     
-                    <!-- Action Results -->
+                    <!-- Results Container - This stays separate and below -->
                     <div id="ai-action-results">
+                        <!-- Results will appear here when actions are triggered -->
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    
+    </div>    
     <!-- AI Recommendations -->
     <div class="row mb-4">
         <div class="col-md-6">

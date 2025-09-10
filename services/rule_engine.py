@@ -13,7 +13,7 @@ class RuleEngine:
     """Centralized business rules and validation logic"""
     
     # Configuration constants
-    MAX_COURTS_PER_OWNER = 10
+    MAX_COURTS_PER_OWNER = 15
     MAX_BOOKING_DURATION_HOURS = 4
     MIN_BOOKING_DURATION_MINUTES = 60
     CANCELLATION_NOTICE_HOURS = 24

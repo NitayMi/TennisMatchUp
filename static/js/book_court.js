@@ -18,6 +18,7 @@ class BookCourtManager {
         this.populateTimeSlots();
         this.setMinDate();
         this.setDateFromURL();
+        this.setupSortingListeners();
     }
 
     setDateFromURL() {
@@ -215,6 +216,64 @@ class BookCourtManager {
             if (loadingText) loadingText.style.display = 'none';
             submitBtn.disabled = false;
         }
+    }
+
+    setupSortingListeners() {
+        // Handle sort option clicks
+        document.querySelectorAll('.sort-option').forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sortValue = e.target.closest('.sort-option').dataset.sort;
+                this.applySorting(sortValue);
+            });
+        });
+    }
+
+    applySorting(sortBy) {
+        // Get current URL parameters
+        const url = new URL(window.location.href);
+        url.searchParams.set('sort', sortBy);
+        
+        // Preserve all existing filters
+        const currentFilters = ['location', 'date', 'court_type', 'max_price', 'show_all'];
+        currentFilters.forEach(filter => {
+            const element = document.querySelector(`[name="${filter}"]`);
+            if (element && element.value) {
+                url.searchParams.set(filter, element.value);
+            }
+        });
+
+        // Add loading indicator
+        this.showLoadingIndicator();
+        
+        // Redirect with new sort parameter
+        window.location.href = url.toString();
+    }
+
+    showLoadingIndicator() {
+        // Create and show a loading overlay
+        const overlay = document.createElement('div');
+        overlay.className = 'loading-overlay';
+        overlay.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center h-100">
+                <div class="spinner-border text-tennis" role="status">
+                    <span class="visually-hidden">Loading courts...</span>
+                </div>
+                <span class="ms-2">Updating court list...</span>
+            </div>
+        `;
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 9999;
+            display: flex;
+        `;
+        
+        document.body.appendChild(overlay);
     }
 }
 

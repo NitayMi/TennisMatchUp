@@ -68,19 +68,78 @@
         </div>
     </div>
 
+    <!-- Sorting and View Options -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h5 class="mb-2">
+                        <i class="fas fa-tennis-ball me-2 text-tennis-green"></i>
+                        {% if show_all %}
+                            All Courts ({{ total_courts }})
+                        {% else %}
+                            Recommended Courts ({{ total_courts }})
+                        {% endif %}
+                    </h5>
+                    {% if not show_all and total_courts > 0 %}
+                    <small class="text-muted">
+                        <i class="fas fa-star me-1 text-warning"></i>
+                        Personalized recommendations based on your preferences
+                    </small>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-end gap-2 flex-wrap">
+                        <!-- Sort Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" 
+                                    id="sortDropdown" data-bs-toggle="dropdown">
+                                <i class="fas fa-sort me-1"></i>
+                                {% for option in sort_options %}
+                                    {% if option.value == sort_by %}{{ option.label }}{% endif %}
+                                {% endfor %}
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for option in sort_options %}
+                                <li>
+                                    <a class="dropdown-item sort-option" href="#" 
+                                       data-sort="{{ option.value }}">
+                                        <i class="{{ option.icon }} me-2"></i>{{ option.label }}
+                                        {% if option.value == sort_by %}
+                                        <i class="fas fa-check ms-2 text-success"></i>
+                                        {% endif %}
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        
+                        <!-- Show All / Show Recommended Toggle -->
+                        {% if show_all %}
+                        <a href="?" class="btn btn-tennis">
+                            <i class="fas fa-star me-1"></i>Show Recommended
+                        </a>
+                        {% else %}
+                        <a href="?show_all=true" class="btn btn-outline-tennis">
+                            <i class="fas fa-list me-1"></i>Show All Courts
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Available Courts -->
     <div class="row">
         <div class="col-12">
             {% if available_courts %}
-            <h4 class="mb-4">
-                <i class="fas fa-tennis-ball me-2 text-tennis-green"></i>
-                Available Courts ({{ available_courts|length }})
-            </h4>
             
             <div class="row">
-                {% for court in available_courts %}
+                {% for court_data in courts_metadata %}
+                {% set court = court_data.court %}
                 <div class="col-lg-6 mb-4">
-                    <div class="card court-card h-100">
+                    <div class="card court-card h-100 {% if not show_all and court_data.total_score >= 70 %}border-warning{% endif %}">
                     {# תמונת המגרש #}
                     {% if court.image_url %}
                     <img
@@ -100,12 +159,41 @@
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <h5 class="card-title mb-0">{{ court.name }}</h5>
-                                <span class="badge bg-success price-badge">₪{{ court.hourly_rate }}/hr</span>
+                                <div class="d-flex flex-column align-items-end gap-1">
+                                    <span class="badge bg-success price-badge">₪{{ court.hourly_rate }}/hr</span>
+                                    {% if not show_all and court_data.total_score >= 70 %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-star me-1"></i>Top Pick
+                                    </span>
+                                    {% elif not show_all and court_data.total_score >= 50 %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-thumbs-up me-1"></i>Good Match
+                                    </span>
+                                    {% endif %}
+                                </div>
                             </div>
                             
                             <p class="text-muted mb-2">
                                 <i class="fas fa-map-marker-alt me-1"></i>{{ court.location }}
+                                {% if court_data.distance_km %}
+                                    <small class="text-success ms-2">
+                                        (~{{ "%.1f"|format(court_data.distance_km) }}km away)
+                                    </small>
+                                {% endif %}
                             </p>
+                            
+                            {% if not show_all and court_data.recommendation_reasons %}
+                            <div class="mb-2">
+                                <small class="text-muted d-block mb-1">
+                                    <i class="fas fa-lightbulb me-1"></i>Why this court?
+                                </small>
+                                <div class="recommendation-reasons">
+                                    {% for reason in court_data.recommendation_reasons[:2] %}
+                                    <small class="badge bg-light text-dark me-1 mb-1">{{ reason }}</small>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
                             
                             {% if court.description %}
                             <p class="card-text small">{{ court.description[:100] }}{% if court.description|length > 100 %}...{% endif %}</p>

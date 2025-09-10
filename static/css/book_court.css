@@ -86,6 +86,60 @@
     display: none;
 }
 
+/* Recommendation Features */
+.court-card.border-warning {
+    border: 2px solid #ffc107 !important;
+    box-shadow: 0 0 0 0.1rem rgba(255, 193, 7, 0.2);
+}
+
+.recommendation-reasons .badge {
+    font-size: 0.7rem;
+    font-weight: normal;
+}
+
+/* Sort Dropdown */
+.dropdown-item:hover {
+    background-color: rgba(44, 85, 48, 0.1);
+}
+
+.dropdown-item.active {
+    background-color: var(--tennis-green);
+    color: white;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    backdrop-filter: blur(2px);
+}
+
+.spinner-border.text-tennis {
+    color: var(--tennis-green) !important;
+}
+
+/* Sort and View Options */
+.btn-outline-tennis {
+    color: var(--tennis-green);
+    border-color: var(--tennis-green);
+}
+
+.btn-outline-tennis:hover {
+    background-color: var(--tennis-green);
+    border-color: var(--tennis-green);
+    color: white;
+}
+
+/* Court Score Indicators */
+.score-indicator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+}
+
+.distance-badge {
+    font-size: 0.75rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .court-card {
@@ -95,6 +149,11 @@
     .cost-details {
         grid-template-columns: 1fr;
         gap: 5px;
+    }
+    
+    .d-flex.gap-2 {
+        gap: 0.5rem !important;
+        flex-direction: column;
     }
     
     .price-badge {

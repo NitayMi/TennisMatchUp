@@ -19,6 +19,7 @@ from utils.decorators import login_required, player_required
 from services.booking_service import BookingService
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
+from services.court_recommendation_engine import CourtRecommendationEngine
 
 
 player_bp = Blueprint('player', __name__, url_prefix='/player')
@@ -76,25 +77,16 @@ def dashboard():
 @login_required
 @player_required
 def book_court():
-    """Show court booking page - CLEANED VERSION"""
+    """Show court booking page - ENHANCED with smart recommendations"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Debug: בדוק כמה מגרשים יש
-    # all_courts = Court.query.all()
-    active_courts = Court.query.filter_by(is_active=True).all()
-    
-    # print(f"DEBUG: Total courts: {len(all_courts)}")
-    # print(f"DEBUG: Active courts: {len(active_courts)}")
-    # for court in all_courts:
-    #     print(f"Court: {court.name}, Active: {court.is_active}")
-    
-    courts = active_courts  # רק מגרשים פעילים  
-    
-    # Get booking date from query params
+    # Get query parameters
     booking_date = request.args.get('date')
+    sort_by = request.args.get('sort', 'recommended')  # Default to recommended
+    show_all = request.args.get('show_all', '').lower() == 'true'
     
-    # הוסף את הfilters החסרים
+    # Build filters
     filters = {
         'location': request.args.get('location'),
         'court_type': request.args.get('court_type'),
@@ -102,12 +94,55 @@ def book_court():
         'max_price': request.args.get('max_price'),
         'date': booking_date
     }
+    # Remove empty filters
+    filters = {k: v for k, v in filters.items() if v}
+    
+    # Get courts using smart recommendation engine
+    if show_all:
+        # Show all courts with basic sorting - no recommendation scoring
+        court_results = CourtRecommendationEngine.get_all_courts_with_basic_sorting(
+            filters=filters,
+            sort_by=sort_by,
+            limit=100
+        )
+    else:
+        # Use smart recommendations
+        court_results = CourtRecommendationEngine.find_recommended_courts(
+            player_id=player.id,
+            filters=filters,
+            sort_by=sort_by,
+            limit=50
+        )
+    
+    # Extract courts and metadata for template
+    courts_with_metadata = []
+    for result in court_results:
+        court_data = {
+            'court': result['court'],
+            'total_score': result['total_score'],
+            'distance_km': result['distance_km'],
+            'score_data': result['score_data']
+        }
+        # Add recommendation explanation if using recommendations
+        if not show_all and result['total_score'] > 0:
+            court_data['recommendation_reasons'] = CourtRecommendationEngine.get_recommendation_explanation(
+                result['score_data']
+            )
+        courts_with_metadata.append(court_data)
+    
+    # Get sort options for template
+    sort_options = CourtRecommendationEngine.get_sort_options()
     
     return render_template('player/book_court.html',
-                         available_courts=courts,
+                         available_courts=[c['court'] for c in courts_with_metadata],
+                         courts_metadata=courts_with_metadata,
                          player=player,
                          booking_date=booking_date,
-                         filters=filters)
+                         filters=filters,
+                         sort_by=sort_by,
+                         sort_options=sort_options,
+                         show_all=show_all,
+                         total_courts=len(courts_with_metadata))
 
 
 @player_bp.route('/submit-booking', methods=['POST'])

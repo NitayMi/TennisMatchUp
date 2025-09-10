@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(/c/Users/User/AppData/Local/Programs/Python/Python310/python.exe app.py)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []

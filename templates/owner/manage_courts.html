@@ -90,8 +90,21 @@
                             <tr class="{{ 'table-light' if not court.is_active else '' }}">
                                 <td>
                                     <div class="d-flex align-items-center">
+                                        <!-- תמונת המגרש או placeholder -->
                                         <div class="court-icon me-3">
-                                            <i class="fas fa-tennis-ball fa-2x text-tennis-green"></i>
+                                            {% if court.image_url %}
+                                            <img src="{{ court.image_url }}" 
+                                                alt="{{ court.name }}"
+                                                style="width: 50px; height: 50px; object-fit: cover; border-radius: 10px; border: 2px solid #e9ecef;"
+                                                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <div style="width: 50px; height: 50px; display: none; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 10px;">
+                                                <i class="fas fa-tennis-ball fa-2x text-tennis-green"></i>
+                                            </div>
+                                        {% else %}
+                                            <div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 10px;">
+                                                <i class="fas fa-tennis-ball fa-2x text-tennis-green"></i>
+                                            </div>
+                                            {% endif %}
                                         </div>
                                         <div>
                                             <h6 class="mb-1">{{ court.name }}</h6>

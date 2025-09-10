@@ -119,7 +119,7 @@ class AIService:
                 "options": {
                     "temperature": temperature,
                     "top_p": 0.9,
-                    "max_tokens": 150
+                    "max_tokens": 100
                 }
             }
             

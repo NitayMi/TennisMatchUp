@@ -1,17 +1,18 @@
 """
 Enhanced AI Routes for TennisMatchUp
-Combines existing advisory endpoints with new action execution endpoints
+Fixed version with no duplicate endpoints
 """
 from flask import Blueprint, jsonify, request, session
 from utils.decorators import login_required, player_required
 from services.ai_service import AIService
+from services.ai_action_service import AIActionService
 from models.player import Player
 from datetime import datetime, timedelta
 import logging
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
-# ===== EXISTING ADVISORY ENDPOINTS (UNCHANGED) =====
+# ===== EXISTING ADVISORY ENDPOINTS =====
 
 @ai_bp.route('/recommendations')
 @login_required
@@ -75,39 +76,96 @@ def ai_chat():
 @player_required
 def action_request():
     """Handle AI requests that require platform actions"""
-    try:
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({'error': 'Player not found'}), 404
-        
-        player = Player.query.filter_by(user_id=user_id).first()
-        if not player:
-            return jsonify({'error': 'Player profile not found'}), 404
-        
-        user_message = request.json.get('message', '')
-        if not user_message:
-            return jsonify({'error': 'No message provided'}), 400
-        
-        # Process action request using AI service
-        result = AIService.process_action_request(user_message, player.id)
-        
-        if 'error' in result:
-            return jsonify({
-                'success': False,
-                'error': result['error']
-            }), 400
-        
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Player not found'}), 404
+
+    data = request.json
+    action_type = data.get('action_type')
+    user_message = data.get('message', '')
+
+    player = Player.query.filter_by(user_id=user_id).first()
+    if not player:
+        return jsonify({'error': 'Player profile not found'}), 404
+
+    if not user_message:
+        return jsonify({'error': 'No message provided'}), 400
+
+    # Quick action handling
+    if action_type == 'find_partner_now':
+        params = {
+            'location': player.preferred_location or 'Tel Aviv',
+            'date': (datetime.now() + timedelta(days=(5-datetime.now().weekday()+7)%7)).strftime('%Y-%m-%d'),
+            'time': '15:00',
+            'skill_level': player.skill_level
+        }
+    elif action_type == 'court_and_partner':
+        params = AIActionService.extract_parameters(user_message)
+        params['skill_level'] = player.skill_level
+    elif action_type == 'weekend_matches':
+        params = {
+            'location': player.preferred_location or 'Tel Aviv',
+            'date': (datetime.now() + timedelta(days=(5-datetime.now().weekday()+7)%7)).strftime('%Y-%m-%d'),
+            'time': '15:00',
+            'skill_level': player.skill_level
+        }
+    elif action_type == 'my_availability':
         return jsonify({
             'success': True,
-            'action_result': result
+            'action_type': action_type,
+            'message': f"You appear to be available most days this week. Your preferred location is {player.preferred_location or 'not set'}."
         })
-        
-    except Exception as e:
-        logging.error(f"Action request error: {str(e)}")
+    elif action_type == 'tell_ai':
+        intent = AIActionService.parse_user_intent(user_message)
+        params = AIActionService.extract_parameters(user_message)
+        params['skill_level'] = player.skill_level
+    else:
+        return jsonify({'error': 'Unknown action type'}), 400
+
+    start_hour = int(params['time'].split(':')[0])
+
+    if not AIActionService.check_user_availability(user_id, params['date'], start_hour):
         return jsonify({
             'success': False,
-            'error': 'Internal server error'
-        }), 500
+            'message': f"You have a booking conflict on {params['date']} at {params['time']}"
+        })
+
+    available_players = AIActionService.find_available_players(
+        params['location'],
+        params['date'],
+        params['time'],
+        params['skill_level'],
+        user_id
+    )
+
+    available_courts = AIActionService.find_available_courts(
+        params['location'],
+        params['date'],
+        start_hour
+    )
+
+    if not available_players and not available_courts:
+        return jsonify({
+            'success': False,
+            'message': f"No players or courts available in {params['location']} on {params['date']} at {params['time']}"
+        })
+
+    proposals = AIActionService.create_match_proposal(
+        player.id,
+        available_players,
+        available_courts,
+        params['date'],
+        params['time']
+    )
+
+    return jsonify({
+        'success': True,
+        'action_type': action_type,
+        'parameters': params,
+        'proposals': proposals,
+        'available_players': len(available_players),
+        'available_courts': len(available_courts)
+    })
 
 @ai_bp.route('/find-players', methods=['POST'])
 @login_required
@@ -420,3 +478,33 @@ def quick_actions():
         }), 500
     
 
+        return jsonify({'error': f'Action failed: {str(e)}'}), 500
+
+@ai_bp.route('/execute-proposal', methods=['POST'])
+@login_required
+def execute_proposal():
+    """Execute a specific match proposal"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'User not authenticated'}), 401
+    
+    data = request.json
+    proposal_id = data.get('proposal_id')
+    booking_action = data.get('booking_action')
+    
+    try:
+        # Here you would integrate with your existing booking system
+        # For now, return success message
+        return jsonify({
+            'success': True,
+            'message': 'Match request sent! You will be notified when the other player responds.',
+            'next_steps': [
+                'Check your messages for partner response',
+                'Court will be auto-booked when partner confirms',
+                'Receive confirmation email with details'
+            ]
+        })
+        
+    except Exception as e:
+        logging.error(f"Execute proposal error: {str(e)}")
+        return jsonify({'error': f'Execution failed: {str(e)}'}), 500

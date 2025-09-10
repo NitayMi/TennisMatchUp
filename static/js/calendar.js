@@ -4,12 +4,15 @@
 class TennisCalendar {
     constructor() {
         console.log('TennisCalendar constructor called');
-        console.log('window.bookingsData:', window.bookingsData);
-        // Read data from HTML data attributes (MVC compliant)
-        const calendarDataEl = document.getElementById('calendarData');
-        if (calendarDataEl) {
-            window.bookingsData = JSON.parse(calendarDataEl.dataset.bookings || '[]');
-            window.currentPlayer = calendarDataEl.dataset.playerId || '0';
+        
+        // Read data from global variables (MVC compliant)
+        if (window.calendarBookings !== undefined) {
+            window.bookingsData = window.calendarBookings;
+            window.currentPlayer = window.calendarPlayerId || '0';
+            console.log('Loaded bookings data:', window.bookingsData);
+        } else {
+            console.error('Calendar bookings data not found in global variables');
+            window.bookingsData = [];
         }
         
         this.currentDate = new Date();
@@ -61,11 +64,14 @@ class TennisCalendar {
     }
 
     renderCalendar() {
+        console.log('renderCalendar called');
         const grid = document.getElementById('calendarGrid');
         if (!grid) {
-            console.error('Calendar grid not found');
+            console.error('Calendar grid element not found - checking DOM structure...');
+            console.log('Available elements:', document.querySelectorAll('[id*="calendar"]'));
             return;
         }
+        console.log('Calendar grid found, rendering...');
 
         grid.innerHTML = '';
 

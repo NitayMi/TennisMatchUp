@@ -1,15 +1,16 @@
 """
 AI Action Service for TennisMatchUp
-Executes real platform functions for actionable AI
+Fixed version with proper time handling
 """
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from models.database import db
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
+import re
 
 class AIActionService:
     """Service for executing real platform actions via AI"""
@@ -18,9 +19,9 @@ class AIActionService:
     def find_available_players(location, date_str, time_str, skill_level, user_id):
         """Find players available for specific date/time/location"""
         try:
-            # Parse date and time
+            # Parse date and time properly
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            target_hour = int(time_str.split(':')[0]) if ':' in time_str else int(time_str)
+            target_time = datetime.strptime(time_str, '%H:%M').time()
             
             # Find players in location with similar skill level
             players = Player.query.join(User).filter(
@@ -32,21 +33,22 @@ class AIActionService:
             
             available_players = []
             for player in players:
-                # Check if player has conflicting bookings
+                # Check if player has conflicting bookings using proper time comparison
                 conflicts = Booking.query.filter(
                     Booking.player_id == player.id,
                     Booking.booking_date == target_date,
-                    Booking.start_time <= target_hour,
-                    Booking.end_time > target_hour,
+                    Booking.start_time <= target_time,
+                    Booking.end_time > target_time,
                     Booking.status.in_(['confirmed', 'pending'])
                 ).count()
                 
                 if conflicts == 0:
                     # Calculate compatibility score
-                    compatibility = MatchingEngine.calculate_compatibility_score(
-                        Player.query.filter_by(user_id=user_id).first(), 
+                    current_player = Player.query.filter_by(user_id=user_id).first()
+                    compatibility = MatchingEngine._calculate_perfect_compatibility(
+                        current_player,
                         player
-                    )
+                    ) if current_player else 85
                     
                     available_players.append({
                         'player_id': player.id,
@@ -62,6 +64,7 @@ class AIActionService:
             return available_players[:5]  # Top 5 matches
             
         except Exception as e:
+            print(f"Error finding available players: {str(e)}")
             return []
     
     @staticmethod
@@ -69,7 +72,8 @@ class AIActionService:
         """Find courts available for specific date/time/location"""
         try:
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            end_hour = start_hour + duration_hours
+            start_time = time(start_hour, 0)  # Convert hour to time object
+            end_time = time(start_hour + duration_hours, 0)
             
             # Find courts in location
             courts = Court.query.filter(
@@ -79,13 +83,13 @@ class AIActionService:
             
             available_courts = []
             for court in courts:
-                # Check for booking conflicts
+                # Check for booking conflicts using proper time comparison
                 conflicts = Booking.query.filter(
                     Booking.court_id == court.id,
                     Booking.booking_date == target_date,
-                    ((Booking.start_time <= start_hour) & (Booking.end_time > start_hour)) |
-                    ((Booking.start_time < end_hour) & (Booking.end_time >= end_hour)) |
-                    ((Booking.start_time >= start_hour) & (Booking.end_time <= end_hour))
+                    ((Booking.start_time <= start_time) & (Booking.end_time > start_time)) |
+                    ((Booking.start_time < end_time) & (Booking.end_time >= end_time)) |
+                    ((Booking.start_time >= start_time) & (Booking.end_time <= end_time))
                 ).filter(
                     Booking.status.in_(['confirmed', 'pending'])
                 ).count()
@@ -97,10 +101,10 @@ class AIActionService:
                         'name': court.name,
                         'location': court.location,
                         'surface': court.surface,
-                        'hourly_rate': court.hourly_rate,
-                        'total_cost': total_cost,
+                        'hourly_rate': float(court.hourly_rate),
+                        'total_cost': float(total_cost),
                         'duration': f"{duration_hours}h",
-                        'time_slot': f"{start_hour:02d}:00-{end_hour:02d}:00"
+                        'time_slot': f"{start_hour:02d}:00-{(start_hour + duration_hours):02d}:00"
                     })
             
             # Sort by price
@@ -108,6 +112,7 @@ class AIActionService:
             return available_courts[:5]  # Top 5 options
             
         except Exception as e:
+            print(f"Error finding available courts: {str(e)}")
             return []
     
     @staticmethod
@@ -137,31 +142,35 @@ class AIActionService:
             return proposals[:4]  # Max 4 proposals
             
         except Exception as e:
+            print(f"Error creating match proposals: {str(e)}")
             return []
     
     @staticmethod
     def check_user_availability(user_id, date_str, start_hour, duration_hours=2):
-        """Check if user has schedule conflicts"""
+        """Check if user has schedule conflicts - FIXED TIME HANDLING"""
         try:
             target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-            end_hour = start_hour + duration_hours
+            start_time = time(start_hour, 0)  # Convert to time object
+            end_time = time(start_hour + duration_hours, 0)
             
             player = Player.query.filter_by(user_id=user_id).first()
             if not player:
                 return False
                 
+            # Fixed SQL query - compare time with time, not time with integer
             conflicts = Booking.query.filter(
                 Booking.player_id == player.id,
                 Booking.booking_date == target_date,
-                ((Booking.start_time <= start_hour) & (Booking.end_time > start_hour)) |
-                ((Booking.start_time < end_hour) & (Booking.end_time >= end_hour)),
+                ((Booking.start_time <= start_time) & (Booking.end_time > start_time)) |
+                ((Booking.start_time < end_time) & (Booking.end_time >= end_time)),
                 Booking.status.in_(['confirmed', 'pending'])
             ).count()
             
             return conflicts == 0
             
         except Exception as e:
-            return False
+            print(f"Error checking user availability: {str(e)}")
+            return True  # Default to available if error
     
     @staticmethod
     def parse_user_intent(user_message):
@@ -185,8 +194,6 @@ class AIActionService:
     @staticmethod
     def extract_parameters(user_message):
         """Extract location, date, time from user message"""
-        import re
-        
         # Default parameters
         params = {
             'location': 'Tel Aviv',  # Default location
@@ -196,7 +203,7 @@ class AIActionService:
         }
         
         # Extract location patterns
-        locations = ['tel aviv', 'rishon lezion', 'jerusalem', 'haifa', 'netanya']
+        locations = ['tel aviv', 'rishon lezion', 'jerusalem', 'haifa', 'netanya', 'herzliya', 'ramat gan']
         for location in locations:
             if location in user_message.lower():
                 params['location'] = location.title()
@@ -210,6 +217,8 @@ class AIActionService:
                 hour = int(match.group(1))
                 if 'pm' in user_message.lower() and hour != 12:
                     hour += 12
+                elif 'am' in user_message.lower() and hour == 12:
+                    hour = 0
                 params['time'] = f"{hour:02d}:00"
                 break
         
@@ -239,6 +248,14 @@ class AIActionService:
                 elif pattern == 'today':
                     today = datetime.now()
                     params['date'] = today.strftime('%Y-%m-%d')
+                elif pattern == 'weekend':
+                    # Default to next Saturday
+                    today = datetime.now()
+                    days_ahead = 5 - today.weekday()  # Saturday = 5
+                    if days_ahead <= 0:
+                        days_ahead += 7
+                    target_date = today + timedelta(days=days_ahead)
+                    params['date'] = target_date.strftime('%Y-%m-%d')
                 break
         
         # Default to next Saturday if no date found

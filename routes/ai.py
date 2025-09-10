@@ -88,7 +88,8 @@ def action_request():
     if not player:
         return jsonify({'error': 'Player profile not found'}), 404
 
-    if not user_message:
+    # Only require message for certain action types
+    if action_type == 'tell_ai' and not user_message:
         return jsonify({'error': 'No message provided'}), 400
 
     # Quick action handling

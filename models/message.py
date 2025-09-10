@@ -18,7 +18,6 @@ class Message(db.Model):
     read_at = db.Column(db.DateTime, nullable=True)
     
     # Enhanced fields for production chat
-    conversation_id = db.Column(db.Integer, db.ForeignKey('conversations.id'), nullable=True)
     reply_to_message_id = db.Column(db.Integer, db.ForeignKey('messages.id'), nullable=True)
     is_edited = db.Column(db.Boolean, default=False, nullable=False)
     edited_at = db.Column(db.DateTime, nullable=True)
@@ -29,7 +28,6 @@ class Message(db.Model):
     
     # Relationships
     related_booking = db.relationship('Booking', backref='messages')
-    conversation = db.relationship('Conversation', back_populates='messages')
     reply_to = db.relationship('Message', remote_side='Message.id', backref='replies')
     
     def __init__(self, sender_id, receiver_id, content, message_type='text', is_broadcast=False):

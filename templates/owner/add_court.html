@@ -163,7 +163,24 @@
                                 </div>
                             </div>
                         </div>
-                        
+
+                        <!-- Image URL -->
+                        <div class="row mb-4">  
+                            <div class="col-md-12">
+                                <label for="image_url" class="form-label">Court Image URL</label>
+                                <input type="url" 
+                                       class="form-control" 
+                                       id="image_url" 
+                                       name="image_url" 
+                                       placeholder="e.g., https://example.com/court-image.jpg"
+                                       inputmode="url"
+                                       value="{{ request.form.get('image_url', '') }}">
+                                <div class="form-text">
+                                    Provide a direct URL to an image of your court.Leave empty if you don’t want to add one.
+                                </div>
+                            </div>
+                        </div>      
+
                         <!-- Pricing Guide -->
                         <div class="alert alert-info">
                             <h6><i class="fas fa-lightbulb me-2"></i>Pricing Tips</h6>

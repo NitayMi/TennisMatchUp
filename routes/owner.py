@@ -18,6 +18,14 @@ from services.geo_service import GeoService
 
 owner_bp = Blueprint('owner', __name__, url_prefix='/owner')
 
+# --- helper: basic check that a URL looks like an image link ---
+def looks_like_image_url(url: str) -> bool:
+    if not url:
+        return False
+     # רק בדיקה שזה HTTP/HTTPS
+    return url.startswith(('http://', 'https://'))
+# --- end helper ---
+
 @owner_bp.route('/dashboard')
 @login_required
 @owner_required
@@ -74,7 +82,16 @@ def add_court():
             'hourly_rate': request.form.get('hourly_rate', type=float),
             'description': request.form.get('description', '').strip()
         }
-        
+                # --- image URL (optional) ---
+        image_url_raw = request.form.get('image_url', '').strip()
+        image_url = image_url_raw if image_url_raw else None
+
+        # אם המשתמש הזין משהו, נבדוק שהוא נראה כמו קישור לתמונה
+        if image_url and not looks_like_image_url(image_url):
+            flash('Image URL must be a valid http(s) link', 'error')
+            return render_template('owner/add_court.html')
+        # --- end image URL ---
+
         # Validate using rule engine
         validation = RuleEngine.validate_court_creation(
             owner_id=user_id,
@@ -88,6 +105,7 @@ def add_court():
         # Create court
         court = Court(
             owner_id=user_id,
+            image_url=image_url,   # ← חדש
             **court_data
         )
         
@@ -144,6 +162,10 @@ def edit_court(court_id):
         court.description = request.form.get('description', '').strip()
         court.is_active = 'is_active' in request.form
         
+        # --- image URL (optional) ---
+        image_url_raw = request.form.get('image_url', '').strip()
+        court.image_url = image_url_raw if image_url_raw else None          
+
         try:
             # CHECK IF LOCATION CHANGED - NEW LOGIC
             if court.location != old_location:

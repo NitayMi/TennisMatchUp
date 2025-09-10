@@ -36,6 +36,10 @@ def create_app():
     
     # Initialize database
     init_db(app)
+
+    # Enable migrations
+    from flask_migrate import Migrate
+    Migrate(app, db)
     
     # Register template filters
     register_filters(app)

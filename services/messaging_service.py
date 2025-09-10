@@ -81,20 +81,15 @@ class MessagingService:
             
             conversations = []
             for conv in raw_conversations[:limit]:
-                # Determine the other participant
-                other_user_id = conv.receiver_id if conv.sender_id == user_id else conv.sender_id
+                # Get the other participant ID from the conversation data
+                other_user_id = conv['partner_id']
                 other_user = User.query.get(other_user_id)
                 
                 if not other_user:
                     continue
                 
-                # Get last message between these users
-                last_message = Message.query.filter(
-                    db.or_(
-                        db.and_(Message.sender_id == user_id, Message.receiver_id == other_user_id),
-                        db.and_(Message.sender_id == other_user_id, Message.receiver_id == user_id)
-                    )
-                ).order_by(Message.created_at.desc()).first()
+                # Use last message from conversation data
+                last_message = conv['last_message']
                 
                 # Count unread messages from this user
                 unread_count = Message.query.filter(
@@ -103,27 +98,19 @@ class MessagingService:
                     Message.is_read == False
                 ).count()
                 
-                conversation_data = {
-                    'other_user_id': other_user_id,
-                    'other_user_name': other_user.full_name,
-                    'other_user_type': other_user.user_type,
-                    'last_message': {
-                        'id': last_message.id,
-                        'content': last_message.get_preview(50),
-                        'full_content': last_message.content,
-                        'time_display': last_message.get_time_display(),
-                        'is_from_me': last_message.sender_id == user_id,
-                        'message_type': last_message.message_type,
-                        'created_at': last_message.created_at.isoformat()
-                    } if last_message else None,
-                    'unread_count': unread_count,
-                    'has_unread': unread_count > 0
-                }
+                # Create simple objects that the template expects
+                class ConversationData:
+                    def __init__(self):
+                        self.other_user = other_user
+                        self.last_message = last_message
+                        self.unread_count = unread_count
+                        self.has_unread = unread_count > 0
                 
+                conversation_data = ConversationData()
                 conversations.append(conversation_data)
             
             # Sort by last message time
-            conversations.sort(key=lambda x: x['last_message']['created_at'] if x['last_message'] else '', reverse=True)
+            conversations.sort(key=lambda x: x.last_message.created_at if x.last_message else datetime.min, reverse=True)
             
             return conversations
             

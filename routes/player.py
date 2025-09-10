@@ -334,13 +334,8 @@ def send_match_request():
     )
     
     if result['success']:
-        # Create or get conversation for new chat system
-        from services.chat_service import ChatService
-        conv_result = ChatService.get_or_create_direct_conversation(user_id, target_player.user_id)
-        
+        # Direct to messaging conversation
         conversation_url = url_for('messaging.conversation', other_user_id=target_player.user_id)
-        if conv_result['success']:
-            conversation_url = url_for('chat.conversation', conversation_id=conv_result['conversation_id'])
         
         return jsonify({
             'success': True,

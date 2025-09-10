@@ -305,7 +305,82 @@ def find_matches():
 @login_required
 @player_required
 def send_match_request():
-    """Send match request to another player - CLEANED VERSION"""
+    """Send match request to another player - UPDATED FOR INTEGRATION"""
+    user_id = session['user_id']
+    target_player_id = request.form.get('target_player_id', type=int)
+    message_content = request.form.get('message', '').strip()
+    
+    if not target_player_id:
+        return jsonify({'success': False, 'error': 'Target player required'}), 400
+    
+    # Get target user
+    target_player = Player.query.get(target_player_id)
+    if not target_player:
+        return jsonify({'success': False, 'error': 'Player not found'}), 404
+    
+    # Create default message if none provided
+    if not message_content:
+        user = User.query.get(user_id)
+        message_content = f"Hi! I'm {user.full_name} and I'd like to play tennis with you. Are you available for a match?"
+    
+    # Use MessagingService instead of direct Message creation
+    from services.messaging_service import MessagingService
+    
+    result = MessagingService.send_message(
+        sender_id=user_id,
+        receiver_id=target_player.user_id,
+        content=message_content,
+        message_type='match_request'
+    )
+    
+    if result['success']:
+        # Return success with conversation URL for redirect
+        return jsonify({
+            'success': True,
+            'message': f'Match request sent to {target_player.user.full_name}!',
+            'conversation_url': url_for('messaging.conversation', other_user_id=target_player.user_id),
+            'message_id': result['message_id']
+        })
+    else:
+        return jsonify(result), 500
+    
+    user_id = session['user_id']
+    target_player_id = request.form.get('target_player_id', type=int)
+    message_content = request.form.get('message', '').strip()
+    
+    if not target_player_id:
+        return jsonify({'success': False, 'error': 'Target player required'}), 400
+    
+    # Get target user
+    target_player = Player.query.get(target_player_id)
+    if not target_player:
+        return jsonify({'success': False, 'error': 'Player not found'}), 404
+    
+    # Create default message if none provided
+    if not message_content:
+        user = User.query.get(user_id)
+        message_content = f"Hi! I'm {user.full_name} and I'd like to play tennis with you. Are you available for a match?"
+    
+    # Use MessagingService instead of direct Message creation
+    from services.messaging_service import MessagingService
+    
+    result = MessagingService.send_message(
+        sender_id=user_id,
+        receiver_id=target_player.user_id,
+        content=message_content,
+        message_type='match_request'
+    )
+    
+    if result['success']:
+        # Return success with conversation URL for redirect
+        return jsonify({
+            'success': True,
+            'message': f'Match request sent to {target_player.user.full_name}!',
+            'conversation_url': url_for('messaging.conversation', other_user_id=target_player.user_id),
+            'message_id': result['message_id']
+        })
+    else:
+        return jsonify(result), 500
     user_id = session['user_id']
     target_player_id = request.form.get('target_player_id', type=int)
     message_content = request.form.get('message', '').strip()
@@ -349,8 +424,8 @@ def send_match_request():
 @login_required
 @player_required
 def messages():
-    """View messages - CLEANED VERSION"""
-    user_id = session['user_id']
+    """Redirect to new messaging system - UPDATED FOR INTEGRATION"""
+    return redirect(url_for('messaging.inbox'))
     
     # Get messages using simple query - no business logic
     messages_received = Message.query.filter_by(receiver_id=user_id).order_by(

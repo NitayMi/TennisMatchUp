@@ -50,7 +50,7 @@ def inbox():
         return render_template('messaging/inbox.html', conversations=conversation_list)
         
     except Exception as e:
-        print("Error in inbox")  # Debug print
+        logger.error("Error in inbox: " + str(e))
         return render_template('messaging/inbox.html', conversations=[])
 
 @messaging_bp.route('/conversation/<int:other_user_id>')
@@ -59,15 +59,15 @@ def conversation(other_user_id):
     """Show conversation with specific user"""
     try:
         user_id = session['user_id']
-        print(f"DEBUG: Current user: {user_id}, Other user: {other_user_id}")  # Debug
+        logger.debug(f"Current user: {user_id}, Other user: {other_user_id}")
         
         # Get the other user
         other_user = User.query.get_or_404(other_user_id)
-        print(f"DEBUG: Other user found: {other_user.full_name}")  # Debug
+        logger.debug(f"Other user found: {other_user.full_name}")
         
         # Get all messages between current user and other user
         messages = Message.get_conversation_messages(user_id, other_user_id)
-        print(f"DEBUG: Found {len(messages)} messages")  # Debug
+        logger.debug(f"Found {len(messages)} messages")
         
         # Mark messages from other user as read
         Message.mark_conversation_as_read(user_id, other_user_id)
@@ -80,7 +80,7 @@ def conversation(other_user_id):
                              messages=messages, 
                              other_user=other_user)
     except Exception as e:
-        print(f"ERROR in conversation: {str(e)}")  # Debug
+        logger.error(f"ERROR in conversation: {str(e)}")
         flash(f'Error loading conversation: {str(e)}', 'error')
         return redirect(url_for('messaging.inbox'))
     """

@@ -16,7 +16,7 @@ from routes.admin import admin_bp
 from routes.shared_booking import shared_booking_bp
 from routes.api import api_bp  # NEW: Import API routes
 from routes.ai import ai_bp
-
+from routes.messaging import messaging_bp
 
 # Import template filters
 from utils.template_filters import register_filters
@@ -51,6 +51,7 @@ def create_app():
     app.register_blueprint(shared_booking_bp)
     app.register_blueprint(api_bp)  # NEW: Register API routes
     app.register_blueprint(ai_bp)   # NEW: Register AI routes
+    app.register_blueprint(messaging_bp)
     
     # Error handlers
     @app.errorhandler(404)

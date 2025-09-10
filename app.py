@@ -73,7 +73,6 @@ def create_app():
     
     return app
 
-app = create_app()
 
 if __name__ == '__main__':
     # Create the Flask app
@@ -98,4 +97,4 @@ if __name__ == '__main__':
         debug=True
     )
 
-# To run in production, use a WSGI server like Gunicorn or uWSGI
+app = create_app()

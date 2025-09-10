@@ -67,8 +67,20 @@ def register_filters(app):
         if datetime_obj is None:
             return ""
         
+        # Handle string dates (ISO format)
+        if isinstance(datetime_obj, str):
+            try:
+                # Try parsing ISO format first
+                if 'T' in datetime_obj:
+                    datetime_obj = datetime.fromisoformat(datetime_obj.replace('Z', '+00:00'))
+                else:
+                    # Try other common formats
+                    datetime_obj = datetime.strptime(datetime_obj, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                return datetime_obj  # Return original string if can't parse
+        
         now = datetime.now()
-        if datetime_obj.tzinfo:
+        if hasattr(datetime_obj, 'tzinfo') and datetime_obj.tzinfo:
             now = now.replace(tzinfo=datetime_obj.tzinfo)
         
         diff = now - datetime_obj

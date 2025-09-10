@@ -20,37 +20,19 @@ messaging_bp = Blueprint('messaging', __name__, url_prefix='/messaging')
 @messaging_bp.route('/inbox')
 @login_required
 def inbox():
-    """Show user's message inbox with conversation list"""
+    """Show user's message conversations"""
     user_id = session['user_id']
     
     try:
-        # Get all messages where user is sender or receiver
-        all_messages = Message.query.filter(
-            or_(Message.sender_id == user_id, Message.receiver_id == user_id)
-        ).order_by(Message.created_at.desc()).all()
+        # Get all conversations using existing service
+        conversations = MessagingService.get_user_conversations(user_id, limit=50)
         
-        # Group by conversation partner
-        conversations = {}
-        for msg in all_messages:
-            # Determine the other user
-            other_user_id = msg.receiver_id if msg.sender_id == user_id else msg.sender_id
-            
-            if other_user_id not in conversations:
-                other_user = User.query.get(other_user_id)
-                if other_user:
-                    conversations[other_user_id] = {
-                        'other_user': other_user,
-                        'last_message': msg,
-                        'unread_count': 0
-                    }
-        
-        # Convert to list
-        conversation_list = list(conversations.values())
-        
-        return render_template('messaging/inbox.html', conversations=conversation_list)
+        return render_template('messaging/inbox.html', 
+                             conversations=conversations)
         
     except Exception as e:
-        logger.error("Error in inbox: " + str(e))
+        logger.error(f"Error loading inbox for user {user_id}: {str(e)}")
+        flash('Error loading conversations', 'error')
         return render_template('messaging/inbox.html', conversations=[])
 
 @messaging_bp.route('/conversation/<int:other_user_id>')

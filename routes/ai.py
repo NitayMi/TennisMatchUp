@@ -476,35 +476,3 @@ def quick_actions():
             'success': False,
             'error': 'Internal server error'
         }), 500
-    
-
-        return jsonify({'error': f'Action failed: {str(e)}'}), 500
-
-@ai_bp.route('/execute-proposal', methods=['POST'])
-@login_required
-def execute_proposal():
-    """Execute a specific match proposal"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'User not authenticated'}), 401
-    
-    data = request.json
-    proposal_id = data.get('proposal_id')
-    booking_action = data.get('booking_action')
-    
-    try:
-        # Here you would integrate with your existing booking system
-        # For now, return success message
-        return jsonify({
-            'success': True,
-            'message': 'Match request sent! You will be notified when the other player responds.',
-            'next_steps': [
-                'Check your messages for partner response',
-                'Court will be auto-booked when partner confirms',
-                'Receive confirmation email with details'
-            ]
-        })
-        
-    except Exception as e:
-        logging.error(f"Execute proposal error: {str(e)}")
-        return jsonify({'error': f'Execution failed: {str(e)}'}), 500

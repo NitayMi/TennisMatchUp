@@ -21,6 +21,55 @@ import json
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
+# ========================= CHAT-RELATED ENDPOINTS =========================
+
+@api_bp.route('/users/available-for-chat')
+@login_required
+def available_users_for_chat():
+    """Get users available for chat (excluding current user)"""
+    current_user_id = session.get('user_id')
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    try:
+        # Get all active users except current user
+        query = User.query.filter(
+            User.id != current_user_id,
+            User.is_active == True
+        )
+        
+        # Role-based filtering
+        if current_user.user_type == 'player':
+            # Players can chat with other players and owners
+            query = query.filter(User.user_type.in_(['player', 'owner']))
+        elif current_user.user_type == 'owner':
+            # Owners can chat with players and other owners
+            query = query.filter(User.user_type.in_(['player', 'owner']))
+        # Admin can chat with everyone (no additional filter)
+        
+        users = query.order_by(User.full_name).limit(50).all()
+        
+        user_list = []
+        for user in users:
+            user_data = {
+                'id': user.id,
+                'name': user.full_name,
+                'user_type': user.user_type,
+                'email': user.email if current_user.user_type == 'admin' else None
+            }
+            user_list.append(user_data)
+        
+        return jsonify({
+            'success': True,
+            'users': user_list
+        })
+        
+    except Exception as e:
+        from services.rule_engine import RuleEngine
+        return jsonify({'success': False, 'error': 'Failed to load users'}), 500
+
 # ========================= BOOKING ENDPOINTS =========================
 
 @api_bp.route('/bookings', methods=['GET'])

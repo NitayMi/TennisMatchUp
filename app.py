@@ -1,5 +1,6 @@
 from flask import Flask, session, render_template
-from flask_session import Session
+# Note: Using built-in Flask sessions instead of flask_session for simplicity
+# from flask_session import Session
 import os
 from datetime import timedelta
 
@@ -16,7 +17,7 @@ from routes.admin import admin_bp
 from routes.shared_booking import shared_booking_bp
 from routes.api import api_bp  # NEW: Import API routes
 from routes.ai import ai_bp
-
+from routes.messaging import messaging_bp
 
 # Import template filters
 from utils.template_filters import register_filters
@@ -28,13 +29,10 @@ def create_app():
     # Load configuration
     app.config.from_object(Config)
     
-    # Set session configuration
-    app.config['SESSION_TYPE'] = 'filesystem'
+    # Set session configuration (using built-in Flask sessions)
     app.config['SESSION_PERMANENT'] = False
     app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-    
-    # Initialize extensions
-    Session(app)
+    app.secret_key = app.config.get('SECRET_KEY', 'dev-key-change-in-production')
     
     # Initialize database
     init_db(app)
@@ -55,6 +53,7 @@ def create_app():
     app.register_blueprint(shared_booking_bp)
     app.register_blueprint(api_bp)  # NEW: Register API routes
     app.register_blueprint(ai_bp)   # NEW: Register AI routes
+    app.register_blueprint(messaging_bp)
     
     # Error handlers
     @app.errorhandler(404)
@@ -82,7 +81,7 @@ if __name__ == '__main__':
     # Create the Flask app
     app = create_app()
     
-    print("🎾 TennisMatchUp Server Starting...")
+    print("TennisMatchUp Server Starting...")
     print("=" * 50)
     print("Available Routes:")
     print("• Home: http://localhost:5000")

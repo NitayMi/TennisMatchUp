@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Read(/C:\\Colman\\TennisMatchUp\\TennisMatchUp\\templates/**)"
+      "Bash(/c/Users/User/AppData/Local/Programs/Python/Python310/python.exe app.py)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

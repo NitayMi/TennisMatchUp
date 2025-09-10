@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ other_user.full_name }} - Messages{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <a href="{{ url_for('messaging.inbox') }}" class="btn btn-outline-secondary btn-sm mb-3">
+                <i class="fas fa-arrow-left me-1"></i>Back to Messages
+            </a>
+            
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user me-2"></i>{{ other_user.full_name }}
+                    </h5>
+                </div>
+                
+                <div class="card-body" style="height: 400px; overflow-y: auto;" id="messagesArea">
+                    {% if messages %}
+                        {% for message in messages %}
+                        <div class="mb-3 {% if message.is_from_me %}text-end{% endif %}" data-message-id="{{ message.id }}">
+                            <div class="d-inline-block p-2 rounded 
+                                {% if message.is_from_me %}bg-primary text-white{% else %}bg-light{% endif %}"
+                                style="max-width: 70%;">
+                                {{ message.content }}
+                                <br><small class="{% if message.is_from_me %}text-light{% else %}text-muted{% endif %}">
+                                    {{ message.get_time_display() }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center">Start the conversation!</p>
+                    {% endif %}
+                </div>
+                
+                <div class="card-footer">
+                    <form id="messageForm" class="d-flex">
+                        <input type="text" id="messageInput" class="form-control me-2" 
+                               placeholder="Type a message..." required>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/messaging-conversation.js') }}"></script>
+{% endblock %}

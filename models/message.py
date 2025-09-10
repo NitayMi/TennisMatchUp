@@ -17,8 +17,18 @@ class Message(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     read_at = db.Column(db.DateTime, nullable=True)
     
+    # Enhanced fields for production chat
+    reply_to_message_id = db.Column(db.Integer, db.ForeignKey('messages.id'), nullable=True)
+    is_edited = db.Column(db.Boolean, default=False, nullable=False)
+    edited_at = db.Column(db.DateTime, nullable=True)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
+    attachment_type = db.Column(db.String(50), nullable=True)
+    attachment_size = db.Column(db.Integer, nullable=True)
+    
     # Relationships
     related_booking = db.relationship('Booking', backref='messages')
+    reply_to = db.relationship('Message', remote_side='Message.id', backref='replies')
     
     def __init__(self, sender_id, receiver_id, content, message_type='text', is_broadcast=False):
         self.sender_id = sender_id
@@ -112,19 +122,25 @@ class Message(db.Model):
     @staticmethod
     def get_user_conversations(user_id):
         """Get all conversations for a user"""
-        # Get all unique conversation partners
-        conversations = db.session.query(
-            Message.sender_id,
-            Message.receiver_id,
-            db.func.max(Message.created_at).label('last_message_time')
-        ).filter(
+        # Get all messages involving the user
+        messages = Message.query.filter(
             db.or_(Message.sender_id == user_id, Message.receiver_id == user_id)
-        ).group_by(
-            db.case(
-                [(Message.sender_id == user_id, Message.receiver_id)],
-                else_=Message.sender_id
-            )
-        ).order_by(db.desc('last_message_time')).all()
+        ).order_by(Message.created_at.desc()).all()
+        
+        # Extract unique conversation partners
+        partners = {}
+        for msg in messages:
+            partner_id = msg.receiver_id if msg.sender_id == user_id else msg.sender_id
+            if partner_id not in partners:
+                partners[partner_id] = {
+                    'partner_id': partner_id,
+                    'last_message_time': msg.created_at,
+                    'last_message': msg
+                }
+        
+        # Convert to list and sort by last message time
+        conversations = list(partners.values())
+        conversations.sort(key=lambda x: x['last_message_time'], reverse=True)
         
         return conversations
     

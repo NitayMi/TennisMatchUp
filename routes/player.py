@@ -305,7 +305,7 @@ def find_matches():
 @login_required
 @player_required
 def send_match_request():
-    """Send match request to another player - CLEANED VERSION"""
+    """Send match request to another player - UPDATED FOR INTEGRATION"""
     user_id = session['user_id']
     target_player_id = request.form.get('target_player_id', type=int)
     message_content = request.form.get('message', '').strip()
@@ -323,47 +323,35 @@ def send_match_request():
         user = User.query.get(user_id)
         message_content = f"Hi! I'm {user.full_name} and I'd like to play tennis with you. Are you available for a match?"
     
-    # Create message
-    message = Message(
+    # Use MessagingService instead of direct Message creation
+    from services.messaging_service import MessagingService
+    
+    result = MessagingService.send_message(
         sender_id=user_id,
         receiver_id=target_player.user_id,
         content=message_content,
         message_type='match_request'
     )
     
-    try:
-        db.session.add(message)
-        db.session.commit()
+    if result['success']:
+        # Direct to messaging conversation
+        conversation_url = url_for('messaging.conversation', other_user_id=target_player.user_id)
         
         return jsonify({
             'success': True,
             'message': f'Match request sent to {target_player.user.full_name}!',
-            'message_id': message.id
+            'conversation_url': conversation_url,
+            'message_id': result['message_id']
         })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': 'Failed to send match request'}), 500
+    else:
+        return jsonify(result), 500
 
 @player_bp.route('/messages')
 @login_required
 @player_required
 def messages():
-    """View messages - CLEANED VERSION"""
-    user_id = session['user_id']
-    
-    # Get messages using simple query - no business logic
-    messages_received = Message.query.filter_by(receiver_id=user_id).order_by(
-        Message.created_at.desc()
-    ).limit(50).all()
-    
-    messages_sent = Message.query.filter_by(sender_id=user_id).order_by(
-        Message.created_at.desc()
-    ).limit(50).all()
-    
-    return render_template('player/messages.html',
-                         messages_received=messages_received,
-                         messages_sent=messages_sent)
+    """Redirect to messaging system"""
+    return redirect(url_for('messaging.inbox'))
 
 @player_bp.route('/profile')
 @login_required

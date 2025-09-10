@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Messages - TennisMatchUp{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-comments me-2"></i>Messages</h1>
+                    <p class="text-muted mb-0">Your conversations with other tennis players</p>
+                </div>
+                <a href="{{ url_for('player.find_matches') }}" class="btn btn-success">
+                    <i class="fas fa-search me-1"></i>Find Players
+                </a>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" class="form-control" placeholder="Search messages..." id="searchMessages">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Conversations List -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-inbox me-2"></i>Conversations
+                        {% if conversations %}
+                            <span class="badge bg-light text-dark ms-2">{{ conversations|length }}</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                
+                <div class="card-body p-0">
+                    {% if conversations %}
+                        <!-- Conversations List -->
+                        <div class="list-group list-group-flush">
+                            {% for conversation in conversations %}
+                            <a href="{{ url_for('messaging.conversation', other_user_id=conversation.other_user.id) }}" 
+                               class="list-group-item list-group-item-action py-3">
+                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                    <div class="d-flex align-items-center flex-grow-1">
+                                        <!-- User Avatar -->
+                                        <div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center me-3"
+                                             style="width: 50px; height: 50px; flex-shrink: 0;">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        
+                                        <!-- Conversation Info -->
+                                        <div class="flex-grow-1 min-width-0">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <h6 class="mb-1 text-truncate">
+                                                    {{ conversation.other_user.full_name }}
+                                                    {% if conversation.other_user.user_type %}
+                                                        <small class="text-muted">({{ conversation.other_user.user_type|title }})</small>
+                                                    {% endif %}
+                                                </h6>
+                                                
+                                                <!-- Time and Unread Count -->
+                                                <div class="d-flex align-items-center">
+                                                    {% if conversation.last_message %}
+                                                        <small class="text-muted me-2">
+                                                            {{ conversation.last_message.get_time_display() }}
+                                                        </small>
+                                                    {% endif %}
+                                                    
+                                                    {% if conversation.unread_count and conversation.unread_count > 0 %}
+                                                        <span class="badge bg-danger rounded-pill">
+                                                            {{ conversation.unread_count }}
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Last Message Preview -->
+                                            {% if conversation.last_message %}
+                                                <p class="mb-0 text-muted small text-truncate">
+                                                    {% if conversation.last_message.sender_id == session.user_id %}
+                                                        <i class="fas fa-reply me-1"></i>You: 
+                                                    {% endif %}
+                                                    {{ conversation.last_message.get_preview(60) }}
+                                                </p>
+                                            {% else %}
+                                                <p class="mb-0 text-muted small">
+                                                    <i class="fas fa-comment-dots me-1"></i>No messages yet
+                                                </p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <!-- Empty State -->
+                        <div class="text-center py-5">
+                            <div class="mb-4">
+                                <i class="fas fa-comment-dots fa-4x text-muted opacity-50"></i>
+                            </div>
+                            <h4 class="text-muted">No conversations yet</h4>
+                            <p class="text-muted mb-4">
+                                Start connecting with other tennis players and court owners!
+                            </p>
+                            <div class="d-flex justify-content-center gap-2">
+                                <a href="{{ url_for('player.find_matches') }}" class="btn btn-success">
+                                    <i class="fas fa-search me-2"></i>Find Players
+                                </a>
+                                <a href="{{ url_for('player.dashboard') }}" class="btn btn-outline-primary">
+                                    <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/messaging-inbox.js') }}"></script>
+{% endblock %}

@@ -21,6 +21,55 @@ import json
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
+# ========================= CHAT-RELATED ENDPOINTS =========================
+
+@api_bp.route('/users/available-for-chat')
+@login_required
+def available_users_for_chat():
+    """Get users available for chat (excluding current user)"""
+    current_user_id = session.get('user_id')
+    current_user = User.query.get(current_user_id)
+    
+    if not current_user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    try:
+        # Get all active users except current user
+        query = User.query.filter(
+            User.id != current_user_id,
+            User.is_active == True
+        )
+        
+        # Role-based filtering
+        if current_user.user_type == 'player':
+            # Players can chat with other players and owners
+            query = query.filter(User.user_type.in_(['player', 'owner']))
+        elif current_user.user_type == 'owner':
+            # Owners can chat with players and other owners
+            query = query.filter(User.user_type.in_(['player', 'owner']))
+        # Admin can chat with everyone (no additional filter)
+        
+        users = query.order_by(User.full_name).limit(50).all()
+        
+        user_list = []
+        for user in users:
+            user_data = {
+                'id': user.id,
+                'name': user.full_name,
+                'user_type': user.user_type,
+                'email': user.email if current_user.user_type == 'admin' else None
+            }
+            user_list.append(user_data)
+        
+        return jsonify({
+            'success': True,
+            'users': user_list
+        })
+        
+    except Exception as e:
+        from services.rule_engine import RuleEngine
+        return jsonify({'success': False, 'error': 'Failed to load users'}), 500
+
 # ========================= BOOKING ENDPOINTS =========================
 
 @api_bp.route('/bookings', methods=['GET'])
@@ -743,3 +792,117 @@ def forbidden(error):
 @api_bp.errorhandler(500)
 def internal_server_error(error):
     return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+# ========================= MESSAGING ENDPOINTS =========================
+
+@api_bp.route('/messages/conversation/<int:other_user_id>', methods=['GET'])
+@login_required
+def get_conversation_messages(other_user_id):
+    """Get messages in conversation with another user"""
+    try:
+        user_id = session['user_id']
+        since_id = request.args.get('since', 0, type=int)
+        
+        # Get messages between current user and other user
+        messages = Message.get_conversation_messages(user_id, other_user_id)
+        
+        # Filter messages since last check (for polling)
+        if since_id > 0:
+            messages = [msg for msg in messages if msg.id > since_id]
+        
+        # Convert to dict format
+        messages_data = []
+        for message in messages:
+            msg_dict = message.to_dict()
+            msg_dict['is_from_me'] = message.sender_id == user_id
+            messages_data.append(msg_dict)
+        
+        # Check typing status (implement simple in-memory storage)
+        typing_info = {
+            'is_typing': False,
+            'user_id': None
+        }
+        
+        return jsonify({
+            'success': True,
+            'messages': messages_data,
+            'typing_info': typing_info
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/messages/send', methods=['POST'])
+@login_required
+def send_message():
+    """Send a new message"""
+    try:
+        user_id = session['user_id']
+        data = request.json
+        
+        receiver_id = data.get('receiver_id')
+        content = data.get('content', '').strip()
+        
+        if not receiver_id or not content:
+            return jsonify({'success': False, 'error': 'Receiver and content required'}), 400
+        
+        # Use MessagingService for sending
+        from services.messaging_service import MessagingService
+        
+        result = MessagingService.send_message(
+            sender_id=user_id,
+            receiver_id=receiver_id,
+            content=content,
+            message_type='text'
+        )
+        
+        if result['success']:
+            # Get the full message object to return
+            message = Message.query.get(result['message_id'])
+            if message:
+                msg_dict = message.to_dict()
+                msg_dict['is_from_me'] = True
+                
+                return jsonify({
+                    'success': True,
+                    'message': msg_dict
+                })
+        
+        return jsonify(result), 500
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/messages/mark-read/<int:other_user_id>', methods=['POST'])
+@login_required
+def mark_conversation_read(other_user_id):
+    """Mark all messages in conversation as read"""
+    try:
+        user_id = session['user_id']
+        
+        # Mark conversation as read
+        Message.mark_conversation_as_read(user_id, other_user_id)
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@api_bp.route('/messages/typing', methods=['POST'])
+@login_required
+def update_typing_status():
+    """Update typing status for real-time indicator"""
+    try:
+        user_id = session['user_id']
+        data = request.json
+        
+        receiver_id = data.get('receiver_id')
+        is_typing = data.get('is_typing', False)
+        
+        # For now, just return success
+        # In production, you'd store this in Redis or similar
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

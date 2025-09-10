@@ -19,7 +19,7 @@
                 <div class="card-body" style="height: 400px; overflow-y: auto;" id="messagesArea">
                     {% if messages %}
                         {% for message in messages %}
-                        <div class="mb-3 {% if message.is_from_me %}text-end{% endif %}">
+                        <div class="mb-3 {% if message.is_from_me %}text-end{% endif %}" data-message-id="{{ message.id }}">
                             <div class="d-inline-block p-2 rounded 
                                 {% if message.is_from_me %}bg-primary text-white{% else %}bg-light{% endif %}"
                                 style="max-width: 70%;">

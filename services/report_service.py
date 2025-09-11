@@ -17,6 +17,33 @@ class ReportService:
     """Centralized reporting and analytics service"""
     
     @staticmethod
+    def get_platform_statistics():
+        """Get platform-wide statistics for landing page"""
+        try:
+            stats = {
+                'total_users': User.query.count(),
+                'total_courts': Court.query.filter_by(is_active=True).count(),
+                'total_bookings': Booking.query.count(),
+                'cities_count': db.session.query(func.count(func.distinct(Court.location))).scalar() or 0
+            }
+            
+            return {
+                'success': True,
+                'statistics': stats
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'statistics': {
+                    'total_users': 0,
+                    'total_courts': 0, 
+                    'total_bookings': 0,
+                    'cities_count': 0
+                }
+            }
+    
+    @staticmethod
     def generate_admin_dashboard_stats():
         """Generate comprehensive admin dashboard statistics"""
         try:

@@ -15,6 +15,19 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_RECORD_QUERIES = True
     
+    # Database connection pool settings for PostgreSQL
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_timeout': 30,
+        'pool_recycle': 3600,  # 1 hour
+        'pool_pre_ping': True,
+        'max_overflow': 10,
+        'pool_size': 5,
+        'connect_args': {
+            'connect_timeout': 10,
+            'options': '-c statement_timeout=30s'
+        }
+    }
+    
     # WTForms Configuration
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None

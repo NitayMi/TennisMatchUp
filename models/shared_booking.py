@@ -185,6 +185,51 @@ class SharedBooking(db.Model):
             return self.player1
         return None
     
+    def get_status_color(self):
+        """Get color class for status - compatible with template expectations"""
+        color_mapping = {
+            'proposed': 'warning',
+            'counter_proposed': 'info',
+            'accepted': 'primary',
+            'confirmed': 'success',
+            'cancelled': 'danger',
+            'expired': 'secondary',
+            'rejected': 'secondary'
+        }
+        return color_mapping.get(self.status, 'secondary')
+    
+    def get_status_display(self):
+        """Get formatted status - compatible with template expectations"""
+        status_mapping = {
+            'proposed': 'Proposed',
+            'counter_proposed': 'Counter Proposed',
+            'accepted': 'Accepted',
+            'confirmed': 'Confirmed',
+            'cancelled': 'Cancelled',
+            'expired': 'Expired',
+            'rejected': 'Rejected'
+        }
+        return status_mapping.get(self.status, self.status.title())
+    
+    def get_duration_display(self):
+        """Get formatted duration - compatible with template expectations"""
+        from datetime import datetime, date
+        start_datetime = datetime.combine(date.today(), self.start_time)
+        end_datetime = datetime.combine(date.today(), self.end_time)
+        duration = end_datetime - start_datetime
+        
+        hours = int(duration.total_seconds() // 3600)
+        minutes = int((duration.total_seconds() % 3600) // 60)
+        
+        if hours > 0 and minutes > 0:
+            return f"{hours}h {minutes}m"
+        elif hours > 0:
+            return f"{hours}h"
+        elif minutes > 0:
+            return f"{minutes}m"
+        else:
+            return "0m"
+    
     def get_current_proposal(self):
         """Get the currently active proposal details"""
         if self.status == 'counter_proposed':

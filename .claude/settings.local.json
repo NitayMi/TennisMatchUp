@@ -3,7 +3,8 @@
     "allow": [
       "Bash(/c/Users/User/AppData/Local/Programs/Python/Python310/python.exe app.py)",
       "Bash(curl:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(py:*)"
     ],
     "deny": [],
     "ask": []

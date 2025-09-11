@@ -20,6 +20,7 @@ from services.booking_service import BookingService
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
 from services.court_recommendation_engine import CourtRecommendationEngine
+from services.dashboard_service import DashboardService
 
 
 player_bp = Blueprint('player', __name__, url_prefix='/player')
@@ -32,23 +33,18 @@ def dashboard():
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
-    # Get dashboard stats using service
-    stats_result = BookingService.get_booking_statistics(player.id, 'player', period_days=30)
-    stats = stats_result.get('statistics', {}) if stats_result['success'] else {}
+    # Use DashboardService for comprehensive dashboard data
+    dashboard_data = DashboardService.get_player_dashboard_data(player.id)
     
-    # Get recent bookings using service - but we need actual booking objects for template
-    today = datetime.now().date()
-    
-    # Get actual Booking objects instead of dictionaries
-    upcoming_bookings = Booking.query.join(Court).filter(
-        Booking.player_id == player.id,
-        Booking.booking_date >= today
-    ).order_by(Booking.booking_date.asc()).limit(10).all()
-    
-    recent_bookings = Booking.query.join(Court).filter(
-        Booking.player_id == player.id,
-        Booking.booking_date < today
-    ).order_by(Booking.booking_date.desc()).limit(5).all()
+    if not dashboard_data['success']:
+        # Instead of redirecting, provide fallback data to prevent redirect loop
+        flash(f'Error loading dashboard data: {dashboard_data["error"]}', 'warning')
+        dashboard_data = {
+            'stats': {'total_bookings': 0, 'confirmed_bookings': 0, 'pending_bookings': 0},
+            'upcoming_bookings': [],
+            'recommended_courts': [],
+            'recent_invites': []
+        }
     
     # Get matches and messages
     try:
@@ -66,9 +62,10 @@ def dashboard():
     
     return render_template('player/dashboard.html', 
                          player=player,
-                         stats=stats,
-                         upcoming_bookings=upcoming_bookings,
-                         recent_bookings=recent_bookings,
+                         stats=dashboard_data['stats'],
+                         upcoming_bookings=dashboard_data['upcoming_bookings'],
+                         recommended_courts=dashboard_data['recommended_courts'],
+                         recent_invites=dashboard_data['recent_invites'],
                          recent_matches=recent_matches,
                          unread_messages=unread_messages)
 
@@ -223,7 +220,7 @@ def cancel_booking(booking_id):
 @login_required
 @player_required
 def my_calendar():
-    """Player calendar view - UNIFIED VERSION"""
+    """Player calendar view - Clean MVC version using DashboardService"""
     user_id = session['user_id']
     player = Player.query.filter_by(user_id=user_id).first()
     
@@ -234,87 +231,32 @@ def my_calendar():
                              booking_groups={'confirmed': [], 'pending': [], 'cancelled': []},
                              bookings_json='[]')
     
-    # Date range for calendar
-    start_date = datetime.now() - timedelta(days=30)
-    end_date = datetime.now() + timedelta(days=90)
+    # Use DashboardService for unified calendar data
+    calendar_data = DashboardService.get_unified_calendar_data(player.id)
     
-    # UNIFIED BOOKING DATA COLLECTION
-    all_bookings_data = []
+    if not calendar_data['success']:
+        flash(f'Error loading calendar: {calendar_data["error"]}', 'error')
+        return render_template('player/my_calendar.html',
+                             player=player,
+                             bookings=[],
+                             booking_groups={'confirmed': [], 'pending': [], 'cancelled': []},
+                             bookings_json='[]')
     
-    # 1. Regular bookings
-    regular_bookings = Booking.query.join(Court).options(joinedload(Booking.court)).filter(
-        Booking.player_id == player.id,
-        Booking.booking_date.between(start_date.date(), end_date.date())
-    ).all()
+    # Create booking groups for template compatibility using actual booking objects
+    all_booking_objects = calendar_data['booking_objects']
+    regular_bookings = [b for b in all_booking_objects if hasattr(b, 'player_id')]  # Regular bookings have player_id
     
-    for b in regular_bookings:
-        try:
-            all_bookings_data.append({
-                'id': b.id,
-                'type': 'regular',
-                'booking_date': b.booking_date.isoformat(),
-                'start_time': b.start_time.strftime('%H:%M'),
-                'end_time': b.end_time.strftime('%H:%M'),
-                'status': b.status,
-                'court': {
-                    'id': b.court.id,
-                    'name': b.court.name,
-                    'location': b.court.location or 'Unknown Location'
-                },
-                'total_cost': float(b.total_cost or b.calculate_cost()),
-                'partner': None  # Regular bookings have no partner
-            })
-        except Exception as e:
-            print(f"Error processing regular booking {b.id}: {e}")
-            continue
-    
-    # 2. Shared bookings
-    shared_bookings = SharedBooking.query.filter(
-        or_(
-            SharedBooking.player1_id == player.id,
-            SharedBooking.player2_id == player.id
-        ),
-        SharedBooking.status.in_(['accepted', 'confirmed']),
-        SharedBooking.booking_date.between(start_date.date(), end_date.date())
-    ).all()
-    
-    for sb in shared_bookings:
-        try:
-            partner_name = sb.get_other_player(player.id).user.full_name
-            all_bookings_data.append({
-                'id': f"shared_{sb.id}",
-                'type': 'shared',
-                'booking_date': sb.booking_date.isoformat(),
-                'start_time': sb.start_time.strftime('%H:%M'),
-                'end_time': sb.end_time.strftime('%H:%M'),
-                'status': 'shared',
-                'court': {
-                    'id': sb.court.id,
-                    'name': sb.court.name,
-                    'location': sb.court.location
-                },
-                'total_cost': float(sb.total_cost),
-                'partner': partner_name
-            })
-        except Exception as e:
-            print(f"Error processing shared booking {sb.id}: {e}")
-            continue
-    
-    # Group for template stats (only regular bookings for stats)
     booking_groups = {
         'confirmed': [b for b in regular_bookings if b.status == 'confirmed'],
         'pending': [b for b in regular_bookings if b.status == 'pending'],
         'cancelled': [b for b in regular_bookings if b.status == 'cancelled']
     }
     
-    # Sort by date and time
-    all_bookings_data.sort(key=lambda x: (x['booking_date'], x['start_time']))
-    
     return render_template('player/my_calendar.html',
                          player=player,
-                         bookings=regular_bookings,  # For template compatibility
+                         bookings=regular_bookings,  # Actual booking objects for template
                          booking_groups=booking_groups,
-                         bookings_json=json.dumps(all_bookings_data))
+                         bookings_json=calendar_data['bookings_json'])
 
 @player_bp.route('/find-matches')
 @login_required

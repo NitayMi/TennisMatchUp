@@ -1,0 +1,73 @@
+/**
+ * TennisMatchUp - Owner Court Calendar Styling
+ * Extracted from template to maintain proper MVC separation
+ */
+
+.fc-event {
+    border: none !important;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.fc-event-title {
+    font-weight: 600;
+}
+
+.fc-daygrid-event {
+    margin: 1px;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.fc-timegrid-event {
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.fc-toolbar {
+    margin-bottom: 1rem;
+}
+
+.fc-toolbar-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--tennis-green, #2E8B57);
+}
+
+.fc-button-primary {
+    background-color: var(--tennis-green, #2E8B57) !important;
+    border-color: var(--tennis-green, #2E8B57) !important;
+}
+
+.fc-button-primary:not(:disabled):active,
+.fc-button-primary:not(:disabled).fc-button-active {
+    background-color: #246945 !important;
+    border-color: #246945 !important;
+}
+
+.fc-col-header-cell {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.fc-today-button {
+    background-color: var(--tennis-green, #2E8B57) !important;
+    border-color: var(--tennis-green, #2E8B57) !important;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+@media (max-width: 768px) {
+    .fc-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+    }
+}

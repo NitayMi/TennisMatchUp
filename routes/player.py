@@ -424,7 +424,7 @@ def search_courts():
     }
     
     # Use matching engine for search
-    courts = MatchingEngine.recommend_courts(
+    courts = CourtRecommendationEngine.find_recommended_courts(
         player_id=player.id,
         **{k: v for k, v in search_params.items() if v is not None}
     )

@@ -780,13 +780,13 @@ class MatchingEngine:
         scored_courts.sort(key=lambda x: x['recommendation_score'], reverse=True)
         
         return scored_courts[:limit]
-    
+    # ---
     @staticmethod
     def _calculate_court_recommendation_score(court, player, distance_km=None):
         """Calculate court recommendation score for a player"""
         score = 50  # Base score
         
-        # Distance factor (30 points max)
+        # Distance factor - FIXED with penalties
         if distance_km is not None:
             if distance_km <= 5:
                 score += 30
@@ -796,8 +796,12 @@ class MatchingEngine:
                 score += 15
             elif distance_km <= 35:
                 score += 8
-            else:
+            elif distance_km <= 50:
                 score += 2
+            elif distance_km <= 100:
+                score -= 20  # PENALTY for very far
+            else:
+                score -= 50  # BIG PENALTY for extremely far
         else:
             # Text-based location matching
             if player.preferred_location.lower() in court.location.lower():
@@ -805,20 +809,24 @@ class MatchingEngine:
             else:
                 score += 10
         
-        # Price factor (20 points max)
+        # Price factor - REDUCED impact
         if court.hourly_rate <= 50:
-            score += 20  # Very affordable
+            score += 15  # Reduced from 20
         elif court.hourly_rate <= 100:
-            score += 15  # Affordable
+            score += 12  # Reduced from 15
         elif court.hourly_rate <= 150:
-            score += 10  # Moderate
+            score += 8   # Reduced from 10
         elif court.hourly_rate <= 200:
-            score += 5   # Expensive
+            score += 3   # Reduced from 5
         else:
-            score += 1   # Very expensive
+            score += 0   # Reduced from 1
         
-        return min(100, score)
-    
+        # Extra penalty for very far courts
+        if distance_km is not None and distance_km > 100:
+            score = score * 0.3
+        
+        return max(0, score)
+    # ---
     @staticmethod
     def _calculate_court_availability(court_id, days_ahead=7):
         """Calculate court availability score"""

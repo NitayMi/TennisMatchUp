@@ -11,6 +11,7 @@ from models.database import db
 from models.user import User
 from models.player import Player
 from models.court import Court, Booking
+from services.court_recommendation_engine import CourtRecommendationEngine
 from services.matching_engine import MatchingEngine
 from services.rule_engine import RuleEngine
 
@@ -288,7 +289,7 @@ class AIService:
             # Use existing MatchingEngine court recommendations
             search_location = location or current_player.preferred_location
             
-            courts = MatchingEngine.recommend_courts(
+            courts = CourtRecommendationEngine.find_recommended_courts(
                 player_id=player_id,
                 location=search_location,
                 limit=5

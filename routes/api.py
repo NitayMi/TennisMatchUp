@@ -9,6 +9,7 @@ from models.player import Player
 from models.court import Court, Booking
 from models.shared_booking import SharedBooking
 from models.message import Message
+from services.court_recommendation_engine import CourtRecommendationEngine
 from utils.decorators import login_required, api_required
 from services.booking_service import BookingService
 from services.revenue_service import RevenueService
@@ -234,7 +235,7 @@ def find_courts():
         if not player:
             return jsonify({'success': False, 'error': 'Player not found'}), 404
         
-        courts = MatchingEngine.recommend_courts(
+        courts = CourtRecommendationEngine.find_recommended_courts(
             player_id=player.id,
             location=request.args.get('location'),
             max_distance=request.args.get('max_distance', 25, type=int),

@@ -12,8 +12,6 @@ from services.geo_service import GeoService
 from services.rule_engine import RuleEngine
 from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import joinedload
-import random
-
 
 class CourtRecommendationEngine:
     """Intelligent court recommendation system with geographic precision"""

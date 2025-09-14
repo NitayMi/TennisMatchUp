@@ -722,111 +722,65 @@ class MatchingEngine:
     
     @staticmethod
     def recommend_courts(player_id, location=None, max_price=None, court_type=None, limit=10):
-        """Recommend courts for a player based on preferences and location"""
+        """
+        Legacy method: Recommend courts for a player based on preferences and location
+        
+        This method now delegates to CourtRecommendationEngine for consistency and proper distance scoring.
+        Maintained for backward compatibility with existing code.
+        """
+        # Import here to avoid circular dependency
+        from services.court_recommendation_engine import CourtRecommendationEngine
+        
         player = Player.query.get(player_id)
         if not player:
             return []
         
-        # Build base query
-        query = Court.query.filter(Court.is_active == True)
-        
-        # Apply filters
+        # Build filters for new recommendation engine
+        filters = {}
         if location:
-            query = query.filter(Court.location.ilike(f'%{location}%'))
-        elif player.preferred_location:
-            # Use player's preferred location if none specified
-            query = query.filter(Court.location.ilike(f'%{player.preferred_location}%'))
-        
+            filters['location'] = location
         if max_price:
-            query = query.filter(Court.hourly_rate <= max_price)
-        
+            filters['max_price'] = max_price
         if court_type:
-            query = query.filter(Court.court_type == court_type)
-        
-        # Get potential courts
-        potential_courts = query.all()
-        
-        # Score and rank courts
-        scored_courts = []
-        player_coords = player.get_coordinates()
-        
-        for court in potential_courts:
-            # Calculate distance if coordinates available
-            distance_km = None
-            if player_coords and court.latitude and court.longitude:
-                court_coords = (court.latitude, court.longitude)
-                distance_km = GeoService.calculate_distance_km(player_coords, court_coords)
+            filters['court_type'] = court_type
             
-            # Calculate recommendation score
-            recommendation_score = MatchingEngine._calculate_court_recommendation_score(
-                court, player, distance_km
-            )
+        # Get recommendations from the new engine (use distance sorting for better results)
+        new_results = CourtRecommendationEngine.find_recommended_courts(
+            player_id=player_id,
+            filters=filters,
+            sort_by='distance',  # Use distance sorting instead of recommendation score
+            limit=limit * 2      # Get more results to ensure we have good options after filtering
+        )
+        
+        # Filter out extremely distant courts (>100km) for practical recommendations
+        filtered_results = []
+        for result in new_results:
+            distance = result.get('distance_km')
+            if distance is None or distance <= 100:
+                filtered_results.append(result)
+            if len(filtered_results) >= limit:
+                break
+        
+        # Convert to legacy format for backward compatibility
+        legacy_results = []
+        for result in filtered_results:
+            court = result['court']
             
-            # Get additional information
+            # Get additional information in legacy format
             availability_score = MatchingEngine._calculate_court_availability(court.id)
             owner_rating = MatchingEngine._get_court_owner_rating(court.owner_id)
             
-            scored_courts.append({
+            legacy_results.append({
                 'court': court,
                 'owner': court.owner,
-                'recommendation_score': recommendation_score,
+                'recommendation_score': result['total_score'],
                 'availability_score': availability_score,
                 'owner_rating': owner_rating,
-                'distance': distance_km,
+                'distance': result['distance_km'],
                 'recent_bookings': MatchingEngine._get_court_recent_bookings(court.id)
             })
         
-        # Sort by recommendation score
-        scored_courts.sort(key=lambda x: x['recommendation_score'], reverse=True)
-        
-        return scored_courts[:limit]
-    # ---
-    @staticmethod
-    def _calculate_court_recommendation_score(court, player, distance_km=None):
-        """Calculate court recommendation score for a player"""
-        score = 50  # Base score
-        
-        # Distance factor - FIXED with penalties
-        if distance_km is not None:
-            if distance_km <= 5:
-                score += 30
-            elif distance_km <= 10:
-                score += 25
-            elif distance_km <= 20:
-                score += 15
-            elif distance_km <= 35:
-                score += 8
-            elif distance_km <= 50:
-                score += 2
-            elif distance_km <= 100:
-                score -= 20  # PENALTY for very far
-            else:
-                score -= 50  # BIG PENALTY for extremely far
-        else:
-            # Text-based location matching
-            if player.preferred_location.lower() in court.location.lower():
-                score += 25
-            else:
-                score += 10
-        
-        # Price factor - REDUCED impact
-        if court.hourly_rate <= 50:
-            score += 15  # Reduced from 20
-        elif court.hourly_rate <= 100:
-            score += 12  # Reduced from 15
-        elif court.hourly_rate <= 150:
-            score += 8   # Reduced from 10
-        elif court.hourly_rate <= 200:
-            score += 3   # Reduced from 5
-        else:
-            score += 0   # Reduced from 1
-        
-        # Extra penalty for very far courts
-        if distance_km is not None and distance_km > 100:
-            score = score * 0.3
-        
-        return max(0, score)
-    # ---
+        return legacy_results
     @staticmethod
     def _calculate_court_availability(court_id, days_ahead=7):
         """Calculate court availability score"""

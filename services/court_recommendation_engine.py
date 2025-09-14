@@ -225,7 +225,7 @@ class CourtRecommendationEngine:
     
     @staticmethod
     def _calculate_distance_score(distance_km, max_travel_distance):
-        """Calculate score based on distance from player"""
+        """Calculate score based on distance from player with heavy penalties for very far courts"""
         if distance_km is None:
             return 10  # Default score if no coordinates
         
@@ -233,12 +233,16 @@ class CourtRecommendationEngine:
             return 25  # Very close
         elif distance_km <= 10:
             return 20  # Close
+        elif distance_km <= 20:
+            return 15  # Reasonable distance
         elif distance_km <= max_travel_distance:
             # Linear decrease within max distance
-            ratio = 1 - ((distance_km - 10) / (max_travel_distance - 10))
-            return int(15 * ratio)
+            ratio = 1 - ((distance_km - 20) / (max_travel_distance - 20))
+            return max(1, int(10 * ratio))  # Minimum 1 point
+        elif distance_km <= 100:
+            return 0  # Far but accessible - no distance points
         else:
-            return 5  # Too far but still reachable
+            return -10  # PENALTY for extremely far courts (>100km)
     
     @staticmethod
     def _calculate_availability_score(court, filters):

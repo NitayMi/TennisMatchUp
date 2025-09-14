@@ -370,9 +370,9 @@ def quick_fix_suggestions():
     print("   if court: print(f'{court.name}: {court.latitude}, {court.longitude}')")
     
     print("\\n4. 📊 הרץ בדיקת אלגוריתם:")
-    print("   from services.matching_engine import MatchingEngine")
-    print("   courts = MatchingEngine.recommend_courts(player_id=1, limit=10)")
-    print("   for result in courts[:5]: print(f'{result[\"court\"].name}: {result[\"distance\"]}km')")
+    print("   from services.court_recommendation_engine import CourtRecommendationEngine")
+    print("   courts = CourtRecommendationEngine.find_recommended_courts(player_id=1, sort_by='distance', limit=10)")
+    print("   for result in courts[:5]: print(f'{result[\"court\"].name}: {result[\"distance_km\"]}km')")
 
 if __name__ == "__main__":
     print("🚀 מתחיל בדיקה...")

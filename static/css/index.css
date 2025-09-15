@@ -237,7 +237,7 @@
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--tennis-green), var(--tennis-light-green));
+    background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.3));
     color: white;
     display: flex;
     align-items: center;

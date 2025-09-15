@@ -347,9 +347,23 @@ def profile():
         # Update player-specific info
         if user.user_type == 'player' and user.player_profile:
             player = user.player_profile
-            player.preferred_location = request.form.get('preferred_location', player.preferred_location)
+            
+            # Check if location changed
+            old_location = player.preferred_location
+            new_location = request.form.get('preferred_location', player.preferred_location)
+            
+            player.preferred_location = new_location
             player.availability = request.form.get('availability', player.availability)
             player.bio = request.form.get('bio', player.bio)
+            
+            # Update coordinates if location changed
+            if old_location != new_location and new_location:
+                from services.geo_service import GeoService
+                coordinates = GeoService.get_coordinates(new_location)
+                if coordinates:
+                    player.latitude = coordinates[0]
+                    player.longitude = coordinates[1]
+                    print(f"🗺️ Updated coordinates for {user.full_name}: {coordinates}")
             
             skill_level = request.form.get('skill_level')
             if skill_level in ['beginner', 'intermediate', 'advanced', 'professional']:

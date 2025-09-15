@@ -270,7 +270,7 @@ def find_matches():
     matches = MatchingEngine.find_matches(
         player_id=player.id,
         skill_level=request.args.get('skill_level'),
-        location=request.args.get('location'),
+        location=player.preferred_location,
         limit=request.args.get('limit', 10, type=int)
     )
     
@@ -356,8 +356,22 @@ def update_profile():
     
     # Update player-specific info
     player.skill_level = request.form.get('skill_level')
-    player.preferred_location = request.form.get('preferred_location', '').strip()
+
+    # Check if location changed
+    old_location = player.preferred_location
+    new_location = request.form.get('preferred_location', '').strip()
+
+    player.preferred_location = new_location
     player.bio = request.form.get('bio', '').strip()
+
+    # Update coordinates if location changed
+    if old_location != new_location and new_location:
+        from services.geo_service import GeoService
+        coordinates = GeoService.get_coordinates(new_location)
+        if coordinates:
+            player.latitude = coordinates[0]
+            player.longitude = coordinates[1]
+            print(f"🗺️ Updated coordinates for {player.user.full_name}: {coordinates}")
     
     try:
         db.session.commit()

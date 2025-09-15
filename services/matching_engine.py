@@ -47,9 +47,6 @@ class MatchingEngine:
             
             query = query.filter(Player.skill_level.in_(compatible_levels))
         
-        if location:
-            query = query.filter(Player.preferred_location.ilike(f'%{location}%'))
-        
         if availability:
             # More flexible availability matching
             if availability == 'flexible':

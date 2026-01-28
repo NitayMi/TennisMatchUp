@@ -87,12 +87,3 @@ If secrets are exposed:
 3. Generate new Flask SECRET_KEY
 4. Review git history for exposed credentials
 5. Update deployment with new secrets
-
-## ⚠️ Security Warning
-
-The previous .env file contained exposed production credentials including:
-- Database password: TMU123456!
-- SendGrid API key: SG.yB0-5i7PSFeGNGbc50Qweg...
-- OpenCage API key: c676257104734193b12099e726567e1c
-
-**These credentials have been removed and must be rotated immediately if they were ever used in production.**
